@@ -22,6 +22,9 @@ docker run \
     --workdir /workspace \
     cwl-mount-debian:latest ./build_deb.sh
 
-docker build . --file Dockerfile.runnable --tag cwl-mount:latest
+(cd "$BASEDIR" && docker build . --file Dockerfile.runnable --tag cwl-mount:latest)
+aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/kittencat
+docker tag cwl-mount:latest public.ecr.aws/kittencat/cwl-mount:latest
+docker push public.ecr.aws/kittencat/cwl-mount:latest
 
 "$BASEDIR"/build_mac.sh

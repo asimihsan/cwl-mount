@@ -21,13 +21,17 @@ like `cat`, `grep`, and shell globbing and query your logs.
 ## Key Features
 
 * Access CloudWatch logs as if they are files. Use `cat` on certain time ranges, `grep --context`, etc.
+* Query latest logs instantaneouly; don't wait for S3 exports or transferring to a stream.
 * Cross platform
   - Natively supports Linux and Mac OS X.
   - Run on Windows via a Docker container.
 
 ## How To Use
 
-You need IAM credentials for a IAM user or IAM role that can call [`logs:FilterLogEvents`](https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_FilterLogEvents.html) and [`logs:DescribeLogGroups`](https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_DescribeLogGroups.html).
+You need IAM credentials for a IAM user or IAM role that can call
+[`logs:FilterLogEvents`](https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_FilterLogEvents.html)
+and
+[`logs:DescribeLogGroups`](https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_DescribeLogGroups.html).
 
 ### Natively on Linux and Mac OS X
 
@@ -65,7 +69,8 @@ drwxrwxrwx  2 asimi  staff  0 Dec 31  1969 2021
 
 ### Docker, for any OS
 
-Since `cwl-mount` requires FUSE it will not work out of the box on Windows. You can instead use a Docker container:
+Since `cwl-mount` requires FUSE it will not work out of the box on Windows. You can instead use a [Docker
+container](https://gallery.ecr.aws/b5u6b4p0/cwl-mount):
 
 ```
 IMAGE_VERSION=cwl-mount@sha256:1af81c199632e7cb0916ddecb0466ecdaa166671f57f253ca12165a49400f764
@@ -78,7 +83,11 @@ docker run \
     "$IMAGE_VERSION"
 ```
 
-The contents of `env-file` are some IAM role credentials that have access to [`logs:FilterLogEvents`](https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_FilterLogEvents.html) and [`logs:DescribeLogGroups`](https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_DescribeLogGroups.html), and look like:
+The contents of `env-file` are some IAM role credentials that have access to
+[`logs:FilterLogEvents`](https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_FilterLogEvents.html)
+and
+[`logs:DescribeLogGroups`](https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_DescribeLogGroups.html),
+and look like:
 
 ```
 AWS_ACCESS_KEY_ID=ABCDE
@@ -126,9 +135,9 @@ https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_StartQu
 docker build . --file Dockerfile.runnable --tag cwl-mount:latest
 
 source ~/.aws_kitten_cat_credentials
-aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/b5u6b4p0
-docker tag cwl-mount:latest public.ecr.aws/b5u6b4p0/cwl-mount:latest
-docker push public.ecr.aws/b5u6b4p0/cwl-mount:latest
+aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/kittencat
+docker tag cwl-mount:latest public.ecr.aws/kittencat/cwl-mount:latest
+docker push public.ecr.aws/kittencat/cwl-mount:latest
 ```
 
 To run it:
@@ -206,6 +215,8 @@ See: https://terminalizer.com/docs
 ```
 npm install -g terminalizer
 
+[ ! -d $HOME/demo ] && mkdir $HOME/demo
+cd $HOME/demo
 terminalizer record demo
 
 # inside the demo...
