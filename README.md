@@ -73,7 +73,7 @@ Since `cwl-mount` requires FUSE it will not work out of the box on Windows. You 
 container](https://gallery.ecr.aws/b5u6b4p0/cwl-mount):
 
 ```
-IMAGE_VERSION=cwl-mount@sha256:1af81c199632e7cb0916ddecb0466ecdaa166671f57f253ca12165a49400f764
+IMAGE_VERSION=cwl-mount@sha256:a287806e6f3f442871398765380b6be039bdcf2fbffb4095ee4ff6174b1d5225
 docker pull public.ecr.aws/kittencat/"$IMAGE_VERSION"
 docker run \
     --privileged \
