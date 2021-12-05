@@ -330,10 +330,10 @@ impl Filesystem for HelloFS {
 
 #[tokio::main]
 async fn main() {
-    let matches = App::new("hello")
+    let matches = App::new("cwl-mount")
         .version(crate_version!())
         .arg(
-            Arg::with_name("MOUNT_POINT")
+            Arg::with_name("mount-point")
                 .required(true)
                 .index(1)
                 .help("Act as a client, and mount FUSE at given path"),
@@ -357,12 +357,15 @@ async fn main() {
                 .multiple(true)
                 .help("Verbose output. Set twice for maximum verbosity."),
         )
+        .arg(
+            Arg::with_name("region")
+                .long("region")
+                .takes_value(true)
+                .help("AWS region, e.g. 'us-west-2'"),
+        )
         .get_matches();
-    let mountpoint = matches.value_of("MOUNT_POINT").unwrap();
+    let mountpoint = matches.value_of("mount-point").unwrap();
     let mut options = vec![MountOption::RO, MountOption::FSName("hello".to_string())];
-    if matches.is_present("auto_unmount") {
-        options.push(MountOption::AutoUnmount);
-    }
     if matches.is_present("allow-root") {
         options.push(MountOption::AllowRoot);
     }
@@ -376,8 +379,9 @@ async fn main() {
     };
     let subscriber = FmtSubscriber::builder().with_max_level(tracing_level).finish();
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+    let region = matches.value_of("region");
 
-    let cwl = CloudWatchLogsImpl::new(tps).await;
+    let cwl = CloudWatchLogsImpl::new(tps, region).await;
     let file_tree = Arc::new(prepare_file_tree(log_group_name, &cwl).await);
     let hello_fs = HelloFS::new(Handle::current(), cwl, log_group_name, file_tree);
 

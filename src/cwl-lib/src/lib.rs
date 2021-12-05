@@ -1,3 +1,8 @@
+/*
+ * Copyright Kitten Cat LLC. All Rights Reserved.
+ * SPDX-License-Identifier: Apache-2.0.
+ */
+
 #[macro_use]
 extern crate derivative;
 
@@ -13,7 +18,8 @@ use leaky_bucket::RateLimiter;
 use lru::LruCache;
 use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
-use tracing::{info, debug, instrument};
+use tracing::{debug, instrument};
+use aws_types::region::Region;
 
 #[derive(Error, Debug)]
 pub enum CloudWatchLogsError {
@@ -116,9 +122,13 @@ pub struct CloudWatchLogsImpl {
 
 impl CloudWatchLogsImpl {
     #[instrument(level = "debug")]
-    pub async fn new(tps: usize) -> Self {
+    pub async fn new<T: std::fmt::Debug + Into<String>>(tps: usize, region: Option<T>) -> Self {
         let cache_capacity = Duration::hours(1).num_minutes() as usize;
-        let config = aws_config::load_from_env().await;
+        let mut config = aws_config::from_env();
+        if let Some(region) = region {
+            config = config.region(Region::new(region.into()));
+        }
+        let config = config.load().await;
         let client = Client::new(&config);
         Self {
             client,
