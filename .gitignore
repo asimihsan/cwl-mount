@@ -1,3 +1,4 @@
+.vscode
 *.code-workspace
 .DS_Store
 pkg/*
