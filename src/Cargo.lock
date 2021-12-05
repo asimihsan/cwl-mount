@@ -543,6 +543,7 @@ dependencies = [
  "aws-types",
  "bytes",
  "chrono",
+ "derivative",
  "futures",
  "leaky-bucket",
  "lru",

@@ -5,26 +5,10 @@
 
 <h4 align="center">Mount AWS CloudWatch logs as a file system.</h4>
 
-<!--
-<p align="center">
-  <a href="https://badge.fury.io/js/electron-markdownify">
-    <img src="https://badge.fury.io/js/electron-markdownify.svg"
-         alt="Gitter">
-  </a>
-  <a href="https://gitter.im/amitmerchant1990/electron-markdownify"><img src="https://badges.gitter.im/amitmerchant1990/electron-markdownify.svg"></a>
-  <a href="https://saythanks.io/to/bullredeyes@gmail.com">
-      <img src="https://img.shields.io/badge/SayThanks.io-%E2%98%BC-1EAEDB.svg">
-  </a>
-  <a href="https://www.paypal.me/AmitMerchant">
-    <img src="https://img.shields.io/badge/$-donate-ff69b4.svg?maxAge=2592000&amp;style=flat">
-  </a>
-</p>
--->
-
 <p align="center">
   <a href="#key-features">Key Features</a> •
   <a href="#how-to-use">How To Use</a> •
-  <a href="#download">Installation</a> •
+  <a href="#installation">Installation</a> •
   <a href="#credits">Credits</a> •
   <a href="#license">License</a>
 </p>
@@ -32,38 +16,66 @@
 `cwl-mount` mounts an AWS CloudWatch Logs log group as a file system. This lets you use everyday utilities
 like `cat`, `grep`, and shell globbing and query your logs.
 
-
 ![screenshot](https://raw.githubusercontent.com/amitmerchant1990/electron-markdownify/master/app/img/markdownify.gif)
 
 ## Key Features
 
+* Access CloudWatch logs as if they are files. Use `cat` on certain time ranges, `grep --context`, etc.
 * Cross platform
   - Natively supports Linux and Mac OS X.
   - Run on Windows via a Docker container.
 
 ## How To Use
 
-To clone and run this application, you'll need [Git](https://git-scm.com) and
-[Node.js](https://nodejs.org/en/download/) (which comes with [npm](http://npmjs.com)) installed on your
-computer. From your command line:
+You need IAM credentials for a IAM user or IAM role that can call [`cloudwatchlogs:FilterLogEvents`](https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_FilterLogEvents.html) and [`cloudwatchlogs:DescribeLogGroups`](https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_DescribeLogGroups.html).
 
-```bash
-# Clone this repository
-$ git clone https://github.com/amitmerchant1990/electron-markdownify
+### Natively on Linux and Mac OS X
 
-# Go into the repository
-$ cd electron-markdownify
+In one Terminal tab:
 
-# Install dependencies
-$ npm install
-
-# Run the app
-$ npm start
+```
+mkdir /tmp/foo
+cwl-mount --log-group-name babynames-preprod-log-group-syslog /tmp/foo
 ```
 
-Note: If you're using Linux Bash for Windows, [see this
-guide](https://www.howtogeek.com/261575/how-to-run-graphical-linux-desktop-applications-from-windows-10s-bash-shell/)
-or use `node` from the command prompt.
+In a second tab:
+
+```
+ls -l /tmp/foo
+
+total 0
+drwxrwxrwx  2 asimi  staff  0 Dec 31  1969 2021
+
+➜  ~ ls -l /tmp/foo/2021/12/04/00-{00,01,02,03,04,05}
+-rwxrwxrwx  1 asimi  staff  2147483647 Dec 31  1969 /tmp/foo/2021/12/04/00-00
+-rwxrwxrwx  1 asimi  staff  2147483647 Dec 31  1969 /tmp/foo/2021/12/04/00-01
+-rwxrwxrwx  1 asimi  staff  2147483647 Dec 31  1969 /tmp/foo/2021/12/04/00-02
+-rwxrwxrwx  1 asimi  staff  2147483647 Dec 31  1969 /tmp/foo/2021/12/04/00-03
+-rwxrwxrwx  1 asimi  staff  2147483647 Dec 31  1969 /tmp/foo/2021/12/04/00-04
+-rwxrwxrwx  1 asimi  staff  2147483647 Dec 31  1969 /tmp/foo/2021/12/04/00-05
+
+➜  ~ cat /tmp/foo/2021/12/04/00-{00,01,02,03,04,05}
+[i-03e71e7954a899acb] Dec  4 00:00:07 ip-10-0-0-62 systemd[1]: Starting Rotate log files...
+[i-03e71e7954a899acb] Dec  4 00:00:07 ip-10-0-0-62 systemd[1]: Starting Daily man-db regeneration...
+[i-03e71e7954a899acb] Dec  4 00:00:07 ip-10-0-0-62 systemd[1]: logrotate.service: Succeeded.
+[i-03e71e7954a899acb] Dec  4 00:00:07 ip-10-0-0-62 systemd[1]: Finished Rotate log files.
+[i-03e71e7954a899acb] Dec  4 00:00:07 ip-10-0-0-62 systemd[1]: man-db.service: Succeeded.
+[i-03e71e7954a899acb] Dec  4 00:00:07 ip-10-0-0-62 systemd[1]: Finished Daily man-db regeneration.[i-03e71e7954a899acb] Dec  4 00:03:01 ip-10-0-0-62 CRON[40987]: (root) CMD (/bin/sleep $[ ( $RANDOM % 3000 ) + 1 ]s; rm -f /var/log/awsagent-update.log; umask 037 && /opt/aws/awsagent/bin/update > /var/log/awsagent-update.log 2>&1)%
+```
+
+### Windows via Docker
+
+Since `cwl-mount` requires FUSE it will not work out of the box on Windows. You can instead use a Docker container:
+
+```
+TODO
+```
+
+### Troubleshooting
+
+If you get an error about the directory already being mounted, try `umount /tmp/foo` first.
+
+## Installation
 
 ## What problem does `cwl-mount` solve
 
@@ -163,10 +175,6 @@ How to set up Rust actors
 
 -   Rust actors, channels, tasks: https://ryhl.io/blog/actors-with-tokio/
 -   Rust channels and tasks: https://tokio.rs/tokio/tutorial/channels
-
-Packaging
-
--   https://agmprojects.com/blog/packaging-a-game-for-windows-mac-and-linux-with-rust.html
 
 ## License
 

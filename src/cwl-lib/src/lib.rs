@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate derivative;
+
 use std::sync::Arc;
 
 use aws_sdk_cloudwatchlogs::Client;
@@ -10,6 +13,7 @@ use leaky_bucket::RateLimiter;
 use lru::LruCache;
 use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
+use tracing::{info, debug, instrument};
 
 #[derive(Error, Debug)]
 pub enum CloudWatchLogsError {
@@ -100,13 +104,18 @@ struct CacheValue {
     pub data_to_display: Bytes,
 }
 
+#[derive(Derivative)]
+#[derivative(Debug)]
 pub struct CloudWatchLogsImpl {
     client: aws_sdk_cloudwatchlogs::Client,
+
+    #[derivative(Debug = "ignore")]
     rate_limiter: RateLimiter,
     cache: Arc<tokio::sync::Mutex<LruCache<CacheKey, CacheValue>>>,
 }
 
 impl CloudWatchLogsImpl {
+    #[instrument(level = "debug")]
     pub async fn new(tps: usize) -> Self {
         let cache_capacity = Duration::hours(1).num_minutes() as usize;
         let config = aws_config::load_from_env().await;
@@ -127,6 +136,7 @@ impl CloudWatchLogsImpl {
         Utc::now() - cache_key.time_bounds.last_event_time > Duration::minutes(5)
     }
 
+    #[instrument(level = "debug")]
     async fn get_log_group_names(&self) -> Result<Vec<String>, CloudWatchLogsError> {
         let mut result = Vec::new();
         let mut next_token: Option<String> = None;
@@ -161,6 +171,7 @@ impl CloudWatchLogsImpl {
         Ok(result)
     }
 
+    #[instrument(level = "debug")]
     pub async fn get_log_events(
         &self,
         log_group_name: String,
@@ -173,7 +184,7 @@ impl CloudWatchLogsImpl {
         let mut next_token: Option<String> = None;
         let limit = limit.unwrap_or(usize::MAX as i32) as usize;
         loop {
-            println!("tick, start_time: {:?}, end_time: {:?}", start_time, end_time);
+            debug!("tick, start_time: {:?}, end_time: {:?}", start_time, end_time);
             self.rate_limiter.acquire_one().await;
             let mut req = self
                 .client
@@ -206,6 +217,7 @@ impl CloudWatchLogsImpl {
         Ok(events)
     }
 
+    #[instrument(level = "debug")]
     pub async fn get_first_event_time_for_log_group(
         &self,
         log_group_name: String,
@@ -231,6 +243,7 @@ impl CloudWatchLogsImpl {
         Ok(Some(first_event_time))
     }
 
+    #[instrument(level = "debug")]
     async fn get_logs_to_display(
         &self,
         log_group_name: String,
@@ -244,7 +257,7 @@ impl CloudWatchLogsImpl {
                 last_event_time: end_time,
             },
         };
-        println!("get_logs_to_display. cache_key: {:?}", cache_key);
+        debug!("get_logs_to_display. cache_key: {:?}", cache_key);
         let cache = Arc::clone(&self.cache);
         {
             let mut cache = cache.lock().await;
@@ -255,7 +268,7 @@ impl CloudWatchLogsImpl {
         let logs = self
             .get_log_events(log_group_name, Some(start_time), Some(end_time), None)
             .await;
-        println!("logs: {:?}", logs);
+        debug!("logs: {:?}", logs);
         let logs = logs.unwrap();
         let data: Bytes = logs
             .into_iter()
@@ -301,6 +314,7 @@ enum CloudWatchLogsMessage {
     },
 }
 
+#[derive(Debug)]
 struct CloudWatchLogsActor {
     cwl: CloudWatchLogsImpl,
 }
@@ -310,6 +324,7 @@ impl CloudWatchLogsActor {
         CloudWatchLogsActor { cwl }
     }
 
+    #[instrument(level = "debug")]
     async fn handle_message(&self, msg: CloudWatchLogsMessage) {
         match msg {
             CloudWatchLogsMessage::GetLogGroupNames { respond_to } => {
@@ -352,19 +367,20 @@ impl CloudWatchLogsActor {
     }
 }
 
+#[instrument(level = "debug")]
 async fn run_cloud_watch_logs_actor(
     actor: Arc<CloudWatchLogsActor>,
     mut receiver: mpsc::Receiver<CloudWatchLogsMessage>,
 ) {
     while let Some(msg) = receiver.recv().await {
-        println!("actor sending msg {:?}...", msg);
+        debug!("actor sending msg {:?}...", msg);
         let actor = Arc::clone(&actor);
         tokio::spawn(async move { actor.handle_message(msg).await });
-        println!("actor finished sending msg");
+        debug!("actor finished sending msg");
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct CloudWatchLogsActorHandle {
     sender: mpsc::Sender<CloudWatchLogsMessage>,
 }
@@ -378,6 +394,7 @@ impl CloudWatchLogsActorHandle {
         Self { sender }
     }
 
+    #[instrument(level = "debug")]
     pub async fn get_log_group_names(&self) -> Result<Vec<String>, CloudWatchLogsError> {
         let (send, recv) = oneshot::channel();
         let msg = CloudWatchLogsMessage::GetLogGroupNames { respond_to: send };
@@ -385,6 +402,7 @@ impl CloudWatchLogsActorHandle {
         recv.await.expect("Actor task has been killed")
     }
 
+    #[instrument(level = "debug")]
     pub async fn get_log_events(
         &self,
         log_group_name: String,
@@ -404,6 +422,7 @@ impl CloudWatchLogsActorHandle {
         recv.await.expect("Actor task has been killed")
     }
 
+    #[instrument(level = "debug")]
     pub async fn get_first_event_time_for_log_group(
         &self,
         log_group_name: String,
@@ -417,6 +436,7 @@ impl CloudWatchLogsActorHandle {
         recv.await.expect("Actor task has been killed")
     }
 
+    #[instrument(level = "debug")]
     pub async fn get_logs_to_display(
         &self,
         log_group_name: String,

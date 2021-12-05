@@ -15,8 +15,6 @@ use fuser::{
     FileAttr, FileType, Filesystem, MountOption, ReplyAttr, ReplyData, ReplyDirectory, ReplyEntry, Request,
 };
 use libc::ENOENT;
-use tracing::Level;
-use tracing_subscriber::FmtSubscriber;
 use std::cmp::min;
 use std::collections::VecDeque;
 use std::ffi::OsStr;
@@ -25,12 +23,18 @@ use std::io::Read;
 use std::sync::Arc;
 use std::time::UNIX_EPOCH;
 use tokio::runtime::Handle;
+use tracing::Level;
+use tracing::{debug, info};
+use tracing_subscriber::FmtSubscriber;
 
 const TTL: std::time::Duration = std::time::Duration::from_secs(1); // 1 second
 const FMODE_EXEC: i32 = 0x20;
 const EMPTY_BUFFER: [u8; 0] = [];
 
-pub async fn prepare_file_tree<T: Into<String>>(log_group_name: T, cwl: &CloudWatchLogsImpl) -> fuse::FileTree {
+pub async fn prepare_file_tree<T: Into<String>>(
+    log_group_name: T,
+    cwl: &CloudWatchLogsImpl,
+) -> fuse::FileTree {
     let end_time = Utc::now();
     let default_start_time = end_time - Duration::days(365);
 
@@ -82,7 +86,7 @@ impl HelloFS {
 impl Filesystem for HelloFS {
     fn lookup(&mut self, _req: &Request, parent: u64, name: &OsStr, reply: ReplyEntry) {
         let filename = name.to_string_lossy().to_string();
-        println!("lookup call. parent: {}, name: {}", parent, filename);
+        debug!("lookup call. parent: {}, name: {}", parent, filename);
         let child = self.file_tree.get_child_for_inode(parent, filename);
         if child.is_none() {
             reply.error(ENOENT);
@@ -125,25 +129,10 @@ impl Filesystem for HelloFS {
             },
             0,
         );
-
-        // let (tx, rx) = crossbeam::channel::bounded(1);
-        // self.handle.spawn(async move {
-        //     let res = get_log_group_names().await;
-        //     let _ = tx.send(res);
-        // });
-        // let res = rx.recv().unwrap();
-        // println!("log groups: {:?}", res);
-
-        // if parent == 1 && name.to_str() == Some("hello.txt") {
-        //     println!("lookup call");
-        //     reply.entry(&TTL, &HELLO_TXT_ATTR, 0);
-        // } else {
-        //     reply.error(ENOENT);
-        // }
     }
 
     fn getattr(&mut self, _req: &Request, ino: u64, reply: ReplyAttr) {
-        println!("getattr call. ino: {}", ino);
+        debug!("getattr call. ino: {}", ino);
         let file = self.file_tree.get_file_by_inode(ino);
         if file.is_none() {
             reply.error(ENOENT);
@@ -153,7 +142,7 @@ impl Filesystem for HelloFS {
         match &file.file.file_type {
             fuse::FileType::Directory => {}
             fuse::FileType::File(_info) => {
-                println!("file: {:?}", file.file);
+                debug!("file: {:?}", file.file);
             }
         }
         reply.attr(
@@ -210,7 +199,7 @@ impl Filesystem for HelloFS {
         _lock: Option<u64>,
         reply: ReplyData,
     ) {
-        println!("ino: {}, offset: {}, size: {}", ino, offset, size);
+        debug!("ino: {}, offset: {}, size: {}", ino, offset, size);
         let file_tree = Arc::clone(&self.file_tree);
         let file = file_tree.get_file_by_inode(ino);
         if file.is_none() {
@@ -236,7 +225,7 @@ impl Filesystem for HelloFS {
                 });
                 let res = rx.recv().unwrap().unwrap();
                 let file_size = res.len();
-                println!("logs to display: {:?}", res);
+                debug!("logs to display: {:?}", res);
                 let read_size = min(size, file_size.saturating_sub(offset as usize) as u32);
                 if read_size == 0 {
                     reply.data(&EMPTY_BUFFER);
@@ -249,26 +238,10 @@ impl Filesystem for HelloFS {
                 reply.data(&buffer);
             }
         }
-
-        // if ino == 2 {
-        //     let file_size = HELLO_TXT_CONTENT.len();
-        //     let read_size = min(size, file_size.saturating_sub(offset as usize) as u32);
-        //     println!("read_size: {}", read_size);
-        //     if read_size == 0 {
-        //         reply.data(&EMPTY_BUFFER);
-        //         return;
-        //     }
-        //     let mut buffer = vec![0; read_size as usize];
-        //     let mut reader = Cursor::new(&HELLO_TXT_CONTENT.as_bytes()[offset as usize..]);
-        //     reader.read_exact(&mut buffer).unwrap();
-        //     reply.data(&buffer);
-        // } else {
-        //     reply.error(ENOENT);
-        // }
     }
 
     fn open(&mut self, _req: &Request, inode: u64, flags: i32, reply: ReplyOpen) {
-        println!("open() called for {:?}", inode);
+        debug!("open() called for {:?}", inode);
         let (_access_mask, _read, _write) = match flags & libc::O_ACCMODE {
             libc::O_RDONLY => {
                 // Behavior is undefined, but most filesystems return EACCES
@@ -309,7 +282,7 @@ impl Filesystem for HelloFS {
     }
 
     fn readdir(&mut self, _req: &Request, ino: u64, _fh: u64, offset: i64, mut reply: ReplyDirectory) {
-        println!("readdir, ino: {}, offset: {}", ino, offset);
+        debug!("readdir, ino: {}, offset: {}", ino, offset);
         let directory = self.file_tree.get_file_by_inode(ino);
         if directory.is_none() {
             reply.error(ENOENT);
@@ -346,7 +319,7 @@ impl Filesystem for HelloFS {
 
         for (i, entry) in entries.into_iter().enumerate().skip(offset as usize) {
             // i + 1 means the index of the next entry
-            println!("readdir add entry: {:?}", entry);
+            debug!("readdir add entry: {:?}", entry);
             if reply.add(entry.0, (i + 1) as i64, entry.1, entry.2) {
                 break;
             }
@@ -359,7 +332,6 @@ impl Filesystem for HelloFS {
 async fn main() {
     let matches = App::new("hello")
         .version(crate_version!())
-        .author("Christopher Berner")
         .arg(
             Arg::with_name("MOUNT_POINT")
                 .required(true)
@@ -397,15 +369,13 @@ async fn main() {
     let tps = 5;
     let log_group_name = matches.value_of("log-group-name").unwrap();
 
-    let subscriber = FmtSubscriber::builder()
-        // all spans/events with a level higher than TRACE (e.g, debug, info, warn, etc.)
-        // will be written to stdout.
-        .with_max_level(Level::INFO)
-        // completes the builder.
-        .finish();
-
-    tracing::subscriber::set_global_default(subscriber)
-        .expect("setting default subscriber failed");
+    let tracing_level = match matches.occurrences_of("verbose") {
+        0 => Level::INFO,
+        1 => Level::DEBUG,
+        _ => Level::TRACE,
+    };
+    let subscriber = FmtSubscriber::builder().with_max_level(tracing_level).finish();
+    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
     let cwl = CloudWatchLogsImpl::new(tps).await;
     let file_tree = Arc::new(prepare_file_tree(log_group_name, &cwl).await);
@@ -414,10 +384,12 @@ async fn main() {
     // See: https://github.com/cberner/fuser/issues/179
     let (send, recv) = std::sync::mpsc::channel();
     ctrlc::set_handler(move || {
-        println!("CTRL-C pressed");
+        info!("CTRL-C pressed");
         send.send(()).unwrap();
     })
     .unwrap();
+    info!("starting...");
     let _guard = fuser::spawn_mount(hello_fs, mountpoint, &vec![]).unwrap();
     let () = recv.recv().unwrap();
+    info!("finishing.");
 }
