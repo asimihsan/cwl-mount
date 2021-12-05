@@ -1,6 +1,6 @@
 
 <h1 align="center">
-  `cwl-mount`
+  cwl-mount
 </h1>
 
 <h4 align="center">Mount AWS CloudWatch logs as a file system.</h4>
@@ -29,10 +29,9 @@
   <a href="#license">License</a>
 </p>
 
-<p>
 `cwl-mount` mounts an AWS CloudWatch Logs log group as a file system. This lets you use everyday utilities
 like `cat`, `grep`, and shell globbing and query your logs.
-</p>
+
 
 ![screenshot](https://raw.githubusercontent.com/amitmerchant1990/electron-markdownify/master/app/img/markdownify.gif)
 
