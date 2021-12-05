@@ -11,4 +11,4 @@ BASEDIR=$(realpath "$(dirname "$0")")
     --depends "fuse-devel >= 2.6.0" \
     --depends "fuse-libs >= 2.6.0" \
     --package \
-    pkg/cwl-mount-0.1.0-1-x86_64.rpm)
+    pkg/cwl-mount-0.1.1-1-x86_64.rpm)

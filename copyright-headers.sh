@@ -8,6 +8,7 @@ gem install copyright-header
 brew install fd
 
 copyright-header --add-path "$BASEDIR"/src/cwl-lib/src/lib.rs \
+                --guess-extension \
                  --license ASL2 \
                  --copyright-holder 'Kitten Cat LLC' \
                  --copyright-software 'cwl-mount' \

@@ -535,7 +535,7 @@ dependencies = [
 
 [[package]]
 name = "cwl-lib"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "aws-config",
  "aws-sdk-cloudwatchlogs",
@@ -555,7 +555,7 @@ dependencies = [
 
 [[package]]
 name = "cwl-mount"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "async-trait",
  "bytes",
@@ -630,7 +630,7 @@ dependencies = [
 
 [[package]]
 name = "fuse"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "bytes",
  "chrono",

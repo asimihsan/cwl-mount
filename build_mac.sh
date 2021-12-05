@@ -40,5 +40,5 @@ lipo -create \
   "$BASEDIR"/src/target/x86_64-apple-darwin/release/cwl-mount
 
 rsync -av "$BASEDIR"/src/target/cwl-universal-apple-darwin-release "$BASEDIR"/pkg/cwl-mount
-(cd "$BASEDIR"/pkg && tar -czvf cwl-mount-0.1.0-darwin-x64_64.tar.gz cwl-mount)
+(cd "$BASEDIR"/pkg && tar -czvf cwl-mount-0.1.1-darwin-x64_64.tar.gz cwl-mount)
 rm -f "$BASEDIR"/pkg/cwl-mount

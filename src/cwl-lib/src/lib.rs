@@ -1,8 +1,3 @@
-/*
- * Copyright Kitten Cat LLC. All Rights Reserved.
- * SPDX-License-Identifier: Apache-2.0.
- */
-
 #[macro_use]
 extern crate derivative;
 

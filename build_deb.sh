@@ -10,4 +10,4 @@ BASEDIR=$(realpath "$(dirname "$0")")
     --output-type deb \
     --depends "libfuse-dev >= 2.6.0" \
     --package \
-    pkg/cwl-mount-0.1.0-1-x86_64.deb)
+    pkg/cwl-mount-0.1.1-1-x86_64.deb)

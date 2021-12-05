@@ -104,17 +104,17 @@ If you get an error about the directory already being mounted, try `umount /tmp/
 Linux with RPM:
 
 ```
-wget https://github.com/asimihsan/cwl-mount/releases/download/v0.1.0/cwl-mount-0.1.0-1-x86_64.rpm
-yum localinstall cwl-mount-0.1.0-1-x86_64.rpm
+wget https://github.com/asimihsan/cwl-mount/releases/download/v0.1.1/cwl-mount-0.1.1-1-x86_64.rpm
+yum localinstall cwl-mount-0.1.1-1-x86_64.rpm
 cwl-mount --help
 ```
 
 Linux with DEB:
 
 ```
-wget https://github.com/asimihsan/cwl-mount/releases/download/v0.1.0/cwl-mount-0.1.0-1-x86_64.deb
+wget https://github.com/asimihsan/cwl-mount/releases/download/v0.1.1/cwl-mount-0.1.1-1-x86_64.deb
 apt -y install gdebi
-gdebi cwl-mount-0.1.0-1-x86_64.deb
+gdebi cwl-mount-0.1.1-1-x86_64.deb
 cwl-mount --help
 ```
 
@@ -125,8 +125,8 @@ Mac:
 brew install macfuse
 
 mkdir $HOME/bin
-wget https://github.com/asimihsan/cwl-mount/releases/download/v0.1.0/cwl-mount-0.1.0-darwin-x64_64.tar.gz
-tar xvf cwl-mount-0.1.0-darwin-x64_64.tar.gz --directory $HOME/bin
+wget https://github.com/asimihsan/cwl-mount/releases/download/v0.1.1/cwl-mount-0.1.1-darwin-x64_64.tar.gz
+tar xvf cwl-mount-0.1.1-darwin-x64_64.tar.gz --directory $HOME/bin
 $HOME/bin/cwl-mount --help
 ```
 
