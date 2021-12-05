@@ -39,7 +39,7 @@ In one Terminal tab:
 
 ```
 mkdir /tmp/foo
-cwl-mount --log-group-name babynames-preprod-log-group-syslog /tmp/foo
+cwl-mount --region us-west-2 --log-group-name babynames-preprod-log-group-syslog /tmp/foo
 ```
 
 In a second tab:
@@ -95,9 +95,36 @@ AWS_SECRET_ACCESS_KEY=fghij
 AWS_REGION=us-west-2
 ```
 
+### Usage help
+
+Usage help:
+
+```
+cwl-mount 0.1.1
+
+USAGE:
+    cwl-mount [FLAGS] [OPTIONS] <mount-point> --log-group-name <log-group-name>
+
+FLAGS:
+        --allow-root    Allow root user to access filesystem
+    -h, --help          Prints help information
+    -V, --version       Prints version information
+    -v, --verbose       Verbose output. Set three times for maximum verbosity.
+
+OPTIONS:
+        --log-group-name <log-group-name>    CloudWatch Logs log group name
+        --region <region>                    AWS region, e.g. 'us-west-2'
+
+ARGS:
+    <mount-point>    Act as a client, and mount FUSE at given path
+```
+
 ### Troubleshooting
 
 If you get an error about the directory already being mounted, try `umount /tmp/foo` first.
+
+I recommend always passing in the AWS region in `--region`, even if you have the `AWS_REGION` environment
+variable set, otherwise STS temporary credentials may not work.
 
 ## Installation
 
