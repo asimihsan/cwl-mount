@@ -84,7 +84,7 @@ impl HelloFS {
 }
 
 impl Filesystem for HelloFS {
-    fn lookup(&mut self, _req: &Request, parent: u64, name: &OsStr, reply: ReplyEntry) {
+    fn lookup(&mut self, req: &Request, parent: u64, name: &OsStr, reply: ReplyEntry) {
         let filename = name.to_string_lossy().to_string();
         debug!("lookup call. parent: {}, name: {}", parent, filename);
         let child = self.file_tree.get_child_for_inode(parent, filename);
@@ -121,8 +121,8 @@ impl Filesystem for HelloFS {
                     fuse::FileType::Directory => 2,
                     fuse::FileType::File(_) => 1,
                 },
-                uid: 501,
-                gid: 20,
+                uid: req.uid(),
+                gid: req.gid(),
                 rdev: 0,
                 flags: 0,
                 blksize: 512,
@@ -131,7 +131,7 @@ impl Filesystem for HelloFS {
         );
     }
 
-    fn getattr(&mut self, _req: &Request, ino: u64, reply: ReplyAttr) {
+    fn getattr(&mut self, req: &Request, ino: u64, reply: ReplyAttr) {
         debug!("getattr call. ino: {}", ino);
         let file = self.file_tree.get_file_by_inode(ino);
         if file.is_none() {
@@ -173,8 +173,8 @@ impl Filesystem for HelloFS {
                     fuse::FileType::Directory => 2,
                     fuse::FileType::File(_) => 1,
                 },
-                uid: 501,
-                gid: 20,
+                uid: req.uid(),
+                gid: req.gid(),
                 rdev: 0,
                 flags: 0,
                 blksize: 512,
@@ -355,7 +355,7 @@ async fn main() {
                 .long("verbose")
                 .short("v")
                 .multiple(true)
-                .help("Verbose output. Set twice for maximum verbosity."),
+                .help("Verbose output. Set three times for maximum verbosity."),
         )
         .arg(
             Arg::with_name("region")
@@ -373,8 +373,9 @@ async fn main() {
     let log_group_name = matches.value_of("log-group-name").unwrap();
 
     let tracing_level = match matches.occurrences_of("verbose") {
-        0 => Level::INFO,
-        1 => Level::DEBUG,
+        0 => Level::WARN,
+        1 => Level::INFO,
+        2 => Level::DEBUG,
         _ => Level::TRACE,
     };
     let subscriber = FmtSubscriber::builder().with_max_level(tracing_level).finish();
