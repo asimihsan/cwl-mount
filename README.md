@@ -16,7 +16,7 @@
 `cwl-mount` mounts an AWS CloudWatch Logs log group as a file system. This lets you use everyday utilities
 like `cat`, `grep`, and shell globbing and query your logs.
 
-![screenshot](https://raw.githubusercontent.com/amitmerchant1990/electron-markdownify/master/app/img/markdownify.gif)
+![screenshot](https://cwl-mount-readme.s3.us-west-2.amazonaws.com/demo.gif)
 
 ## Key Features
 
