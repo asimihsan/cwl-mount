@@ -104,8 +104,6 @@ If you get an error about the directory already being mounted, try `umount /tmp/
 Linux with RPM:
 
 ```
-sudo yum install fuse
-
 wget https://github.com/asimihsan/cwl-mount/releases/download/v0.1.0/cwl-mount-0.1.0-1-x86_64.rpm
 yum localinstall cwl-mount-0.1.0-1-x86_64.rpm
 cwl-mount --help
@@ -114,8 +112,6 @@ cwl-mount --help
 Linux with DEB:
 
 ```
-apt install fuse
-
 wget https://github.com/asimihsan/cwl-mount/releases/download/v0.1.0/cwl-mount-0.1.0-1-x86_64.deb
 apt -y install gdebi
 gdebi cwl-mount-0.1.0-1-x86_64.deb
