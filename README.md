@@ -41,7 +41,7 @@ cwl-mount --log-group-name babynames-preprod-log-group-syslog /tmp/foo
 In a second tab:
 
 ```
-ls -l /tmp/foo
+➜  ~ ls -l /tmp/foo
 
 total 0
 drwxrwxrwx  2 asimi  staff  0 Dec 31  1969 2021
