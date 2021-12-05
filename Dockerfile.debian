@@ -1,0 +1,70 @@
+ARG DEBIAN_VERSION=bullseye-20211201-slim
+
+# -----------------------------------------------------------------------------
+#   Base Debian image.
+# -----------------------------------------------------------------------------
+FROM public.ecr.aws/debian/debian:$DEBIAN_VERSION as base
+
+RUN apt -y update && \
+    apt -y install \
+        build-essential \
+        curl \
+        libfuse-dev \
+        libssh-dev \
+        perl \
+        pkg-config \
+        ruby \
+        ruby-dev \
+        squashfs-tools \
+        tmux \
+        vim \
+        wget
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+#   Rust
+# -----------------------------------------------------------------------------
+FROM base as rust_dependencies
+
+ENV VERSION_RUST="1.57.0"
+
+ENV PATH="/root/.cargo/bin:${PATH}"
+RUN curl https://sh.rustup.rs -sSf | bash -s -- -y && \
+    rustup install ${VERSION_RUST} && \
+    rustup default stable && \
+    cargo install cargo-chef && \
+    cargo install cargo-pants && \
+    cargo install cargo-deny --features vendored-openssl
+
+COPY . /root/cargo-chef
+WORKDIR /root/cargo-chef/src
+RUN . /root/.cargo/env && \
+    rustup default stable && \
+    cargo chef prepare --recipe-path recipe.json
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+#   Final image pulling dependencies together.
+# -----------------------------------------------------------------------------
+FROM base
+
+ENV PATH="${PATH}:/usr/local/bin:/root/.cargo/bin"
+
+# Pre-cache Rust dependencies
+COPY --from=rust_dependencies /root/.cargo /root/.cargo
+COPY --from=rust_dependencies /root/cargo-chef/src/recipe.json /root/recipe.json
+RUN echo ". $HOME/.cargo/env" >> $HOME/.bashrc && \
+    rustup default stable && \
+    . /root/.cargo/env && \ 
+    rustup default stable && \
+    cargo chef cook --release --recipe-path /root/recipe.json && \
+    rm -f /root/recipe.json
+
+# Install fpm, for building RPMs.
+RUN gem install fpm
+
+# Delete visible files from root home
+# RUN rm -rf $HOME/*
+
+SHELL ["/bin/bash", "-c"]
+# -----------------------------------------------------------------------------

@@ -1,0 +1,77 @@
+ARG AMAZON_LINUX_VERSION=2.0.20211201.0
+
+# -----------------------------------------------------------------------------
+#   Base Amazon Linux 2 image.
+# -----------------------------------------------------------------------------
+# https://gallery.ecr.aws/amazonlinux/amazonlinux
+FROM public.ecr.aws/amazonlinux/amazonlinux:$AMAZON_LINUX_VERSION as base
+#FROM amazonlinux:$AMAZON_LINUX_VERSION as base
+
+RUN amazon-linux-extras install -y epel && \
+    yum -y update && \
+    yum -y groupinstall "Development Tools" && \
+    yum -y install \
+        fuse-devel \
+        fuse-libs \
+        openssl-devel \
+        perl \
+        perl-core \
+        pkgconfig \
+        rpm-build \
+        ruby \
+        ruby-devel \
+        squashfs-tools \
+        tmux \
+        vim \
+        wget \
+        which && \
+    amazon-linux-extras install -y ruby2.6
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+#   Rust
+# -----------------------------------------------------------------------------
+FROM base as rust_dependencies
+
+ENV VERSION_RUST="1.57.0"
+
+ENV PATH="/root/.cargo/bin:${PATH}"
+RUN curl https://sh.rustup.rs -sSf | bash -s -- -y && \
+    rustup install ${VERSION_RUST} && \
+    rustup default stable && \
+    cargo install cargo-chef && \
+    cargo install cargo-pants && \
+    cargo install cargo-deny --features vendored-openssl
+
+COPY . /root/cargo-chef
+WORKDIR /root/cargo-chef/src
+RUN source /root/.cargo/env && \
+    rustup default stable && \
+    cargo chef prepare --recipe-path recipe.json
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+#   Final image pulling dependencies together.
+# -----------------------------------------------------------------------------
+FROM base
+
+ENV PATH="${PATH}:/usr/local/bin:/root/.cargo/bin"
+
+# Pre-cache Rust dependencies
+COPY --from=rust_dependencies /root/.cargo /root/.cargo
+COPY --from=rust_dependencies /root/cargo-chef/src/recipe.json /root/recipe.json
+RUN echo "source $HOME/.cargo/env" >> $HOME/.bashrc && \
+    rustup default stable && \
+    source /root/.cargo/env && \ 
+    rustup default stable && \
+    cargo chef cook --release --recipe-path /root/recipe.json && \
+    rm -f /root/recipe.json
+
+# Install fpm, for building RPMs.
+RUN gem install fpm
+
+# Delete visible files from root home
+# RUN rm -rf $HOME/*
+
+SHELL ["/bin/bash", "-c"]
+# -----------------------------------------------------------------------------

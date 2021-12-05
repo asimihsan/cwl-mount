@@ -1,0 +1,19 @@
+ARG DEBIAN_VERSION=bullseye-20211201-slim
+
+FROM public.ecr.aws/debian/debian:$DEBIAN_VERSION as base
+
+COPY pkg/cwl-mount-0.1.0-1-x86_64.deb .
+COPY start.sh .
+RUN apt -y update && \
+    apt -y install \
+        ca-certificates \
+        less \
+        libfuse-dev \
+        tmux \
+        uuid \
+        vim-tiny && \
+    dpkg -i cwl-mount-0.1.0-1-x86_64.deb && \
+    rm -f cwl-mount-0.1.0-1-x86_64.deb && \
+    apt clean && \
+    ln -s /usr/bin/vim.tiny /usr/bin/vim
+ENTRYPOINT ["/bin/bash", "start.sh"]

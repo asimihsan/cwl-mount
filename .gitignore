@@ -1,0 +1,4 @@
+*.code-workspace
+.DS_Store
+pkg/*
+!pkg/.gitkeep
