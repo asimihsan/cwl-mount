@@ -21,7 +21,6 @@ cargo install cargo-lipo
 # Build macOS binaries
 # TODO support ARM
 # targets="aarch64-apple-darwin x86_64-apple-darwin"
-(cd "$BASEDIR"/src && cargo clean)
 targets="x86_64-apple-darwin"
 for target in $targets; do
   rustup target add "$target"
@@ -38,7 +37,7 @@ done
 # TODO support ARM
 lipo -create \
   -output "$BASEDIR"/src/target/cwl-universal-apple-darwin-release \
-  "$BASEDIR"/src/target/x86_64-apple-darwin/release/cwl
+  "$BASEDIR"/src/target/x86_64-apple-darwin/release/cwl-mount
 
 rsync -av "$BASEDIR"/src/target/cwl-universal-apple-darwin-release "$BASEDIR"/pkg/cwl-mount
 (cd "$BASEDIR"/pkg && tar -czvf cwl-mount-0.1.0-darwin-x64_64.tar.gz cwl-mount)

@@ -4,7 +4,7 @@ set -euxo pipefail
 
 BASEDIR=$(realpath "$(dirname "$0")")
 
-(cd "${BASEDIR}"/src && cargo clean && cargo build --workspace --release)
+(cd "${BASEDIR}"/src && cargo build --workspace --release)
 (cd "${BASEDIR}" && fpm \
     --force \
     --output-type rpm \
