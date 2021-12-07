@@ -18,6 +18,25 @@ like `cat`, `grep`, and shell globbing and query your logs.
 
 ![screenshot](https://cwl-mount-readme.s3.us-west-2.amazonaws.com/demo.gif)
 
+## What problem does `cwl-mount` solve
+
+AWS CloudWatch Logs Insights is powerful but only returns a maximum of 10,000 results with no option to
+paginate results [1]. AWS CloudWatch Logs lets you filter logs but does not allow you to show logs before and
+after matches. You can export CloudWatch logs to S3 but this can take up to 12 hours [3]. You can stream your
+CloudWatch Logs to another data store but will pay for the streaming out and extra infrastructure [4].
+
+Filling in the gap, `cwl-mount` has no upper limit on the number of logs you can search over, allows you to
+run `grep -C` to search with context, can be used immediately, and does not require additional infrastructure.
+
+[1]
+https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_StartQuery.html#API_StartQuery_RequestSyntax
+
+[2] https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/cloudwatch_limits_cwl.html
+
+[3] https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/S3Export.html
+
+[4] https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/Subscriptions.html
+
 ## Key Features
 
 * Access CloudWatch logs as if they are files. Use `cat` on certain time ranges, `grep --context`, etc.
@@ -73,14 +92,12 @@ Since `cwl-mount` requires FUSE it will not work out of the box on Windows. You 
 container](https://gallery.ecr.aws/b5u6b4p0/cwl-mount):
 
 ```
-IMAGE_VERSION=cwl-mount@sha256:a287806e6f3f442871398765380b6be039bdcf2fbffb4095ee4ff6174b1d5225
-docker pull public.ecr.aws/b5u6b4p0/"$IMAGE_VERSION"
 docker run \
     --privileged \
     --interactive \
     --tty \
     --env-file $HOME/.aws_kitten_cat_credentials_docker \
-    "$IMAGE_VERSION"
+    public.ecr.aws/b5u6b4p0/cwl-mount:latest
 ```
 
 The contents of `env-file` are some IAM role credentials that have access to
@@ -157,25 +174,6 @@ tar xvf cwl-mount-0.1.1-darwin-x64_64.tar.gz --directory $HOME/bin
 $HOME/bin/cwl-mount --help
 ```
 
-## What problem does `cwl-mount` solve
-
-AWS CloudWatch Logs Insights is powerful but only returns a maximum of 10,000 results with no option to
-paginate results [1]. AWS CloudWatch Logs lets you filter logs but does not allow you to show logs before and
-after matches. You can export CloudWatch logs to S3 but this can take up to 12 hours [3]. You can stream your
-CloudWatch Logs to another data store but will pay for the streaming out and extra infrastructure [4].
-
-Filling in the gap, `cwl-mount` has no upper limit on the number of logs you can search over, allows you to
-run `grep -C` to search with context, can be used immediately, and does not require additional infrastructure.
-
-[1]
-https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_StartQuery.html#API_StartQuery_RequestSyntax
-
-[2] https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/cloudwatch_limits_cwl.html
-
-[3] https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/S3Export.html
-
-[4] https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/Subscriptions.html
-
 ## Credits
 
 - This README file is based off of
@@ -188,7 +186,7 @@ https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_StartQu
 ### Building runnable Docker container and publishing it
 
 ```
-docker build . --file Dockerfile.runnable --tag cwl-mount:latest
+docker build --squash . --file Dockerfile.runnable --tag cwl-mount:latest
 
 source ~/.aws_kitten_cat_credentials
 aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/kittencat
