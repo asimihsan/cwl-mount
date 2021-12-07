@@ -6,5 +6,6 @@
 --description "Mount AWS CloudWatch logs as a file system"
 --url "https://example.com/hello-world"
 --chdir src/target/release
+--after-install cwl-mount-post-install.sh
 
 cwl-mount=/usr/bin/cwl-mount

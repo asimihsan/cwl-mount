@@ -36,17 +36,12 @@ FROM base as rust_dependencies
 ENV VERSION_RUST="1.57.0"
 
 ENV PATH="/root/.cargo/bin:${PATH}"
+COPY . /root/cargo-chef
+WORKDIR /root/cargo-chef/src
 RUN curl https://sh.rustup.rs -sSf | bash -s -- -y && \
     rustup install ${VERSION_RUST} && \
     rustup default stable && \
     cargo install cargo-chef && \
-    cargo install cargo-pants && \
-    cargo install cargo-deny --features vendored-openssl
-
-COPY . /root/cargo-chef
-WORKDIR /root/cargo-chef/src
-RUN source /root/.cargo/env && \
-    rustup default stable && \
     cargo chef prepare --recipe-path recipe.json
 # -----------------------------------------------------------------------------
 

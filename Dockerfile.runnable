@@ -1,17 +1,20 @@
-ARG DEBIAN_VERSION=bullseye-20211201-slim
+ARG DEBIAN_VERSION=stable-slim
 
 FROM public.ecr.aws/debian/debian:$DEBIAN_VERSION as base
 
 RUN apt -y update && \
-    apt -y install \
+    apt -y install --no-install-recommends \
     ca-certificates \
     less \
+    libcap2-bin \
     libfuse-dev \
     tmux \
     uuid \
     vim-tiny && \
     ln -s /usr/bin/vim.tiny /usr/bin/vim && \
-    apt clean
+    apt autoremove -y && \
+    apt clean && \
+    rm -rf /var/lib/apt/lists/*
 COPY pkg/cwl-mount-0.1.1-1-x86_64.deb .
 RUN dpkg -i cwl-mount-0.1.1-1-x86_64.deb && \
     rm -f cwl-mount-0.1.1-1-x86_64.deb

@@ -3,6 +3,7 @@
 set -euxo pipefail
 
 BASEDIR=$(realpath "$(dirname "$0")")
+export DOCKER_BUILDKIT=0
 
 docker build . --file Dockerfile.amazonlinux2 --tag cwl-mount-al2:latest
 docker run \
