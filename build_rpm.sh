@@ -4,7 +4,7 @@ set -euxo pipefail
 
 BASEDIR=$(realpath "$(dirname "$0")")
 
-(cd "${BASEDIR}"/src && cargo build --workspace --release)
+(cd "${BASEDIR}"/src && cargo build --workspace --profile production)
 cp "${BASEDIR}"/cwl-mount-post-install.sh "${BASEDIR}"/src/target/release/cwl-mount-post-install.sh
 (cd "${BASEDIR}" && fpm \
     --force \

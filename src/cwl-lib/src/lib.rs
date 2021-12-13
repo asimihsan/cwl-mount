@@ -475,7 +475,8 @@ mod tests {
     #[test]
     fn test_list_log_groups() {
         let tps = 5;
-        let cwl: CloudWatchLogsImpl = tokio_test::block_on(CloudWatchLogsImpl::new(tps));
+        let region = Some("us-west-2");
+        let cwl: CloudWatchLogsImpl = tokio_test::block_on(CloudWatchLogsImpl::new(tps, region));
         let res = tokio_test::block_on(cwl.get_log_group_names()).unwrap();
         res.iter().for_each(|l| println!("{}", l));
     }
@@ -483,7 +484,8 @@ mod tests {
     #[test]
     fn test_get_log_events() {
         let tps = 5;
-        let cwl: CloudWatchLogsImpl = tokio_test::block_on(CloudWatchLogsImpl::new(tps));
+        let region = Some("us-west-2");
+        let cwl: CloudWatchLogsImpl = tokio_test::block_on(CloudWatchLogsImpl::new(tps, region));
         let log_group_name = "babynames-preprod-log-group-syslog".to_string();
         let start_time = Some(Utc.ymd(2021, 11, 26).and_hms(1, 0, 0));
         let end_time = Some(Utc.ymd(2021, 11, 26).and_hms(21, 0, 0));
@@ -495,7 +497,8 @@ mod tests {
     #[test]
     fn get_time_bounds_for_log_group() {
         let tps = 5;
-        let cwl: CloudWatchLogsImpl = tokio_test::block_on(CloudWatchLogsImpl::new(tps));
+        let region = Some("us-west-2");
+        let cwl: CloudWatchLogsImpl = tokio_test::block_on(CloudWatchLogsImpl::new(tps, region));
         let log_group_name = "babynames-preprod-log-group-syslog".to_string();
         let res = tokio_test::block_on(cwl.get_first_event_time_for_log_group(log_group_name)).unwrap();
         println!("{:?}", res);
