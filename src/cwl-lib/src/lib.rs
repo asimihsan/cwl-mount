@@ -147,7 +147,8 @@ impl CloudWatchLogsImpl {
     }
 
     #[instrument(level = "debug")]
-    async fn get_log_group_names(&self) -> Result<Vec<String>, CloudWatchLogsError> {
+    pub async fn get_log_group_names(&self) -> Result<Vec<String>, CloudWatchLogsError> {
+        const LOG_GROUP_LIMIT: i32 = 50;
         let mut result = Vec::new();
         let mut next_token: Option<String> = None;
         loop {
@@ -155,7 +156,7 @@ impl CloudWatchLogsImpl {
             let req = self
                 .client
                 .describe_log_groups()
-                .limit(10)
+                .limit(LOG_GROUP_LIMIT)
                 .set_next_token(next_token.clone());
             let resp = match req.send().await {
                 Ok(inner) => Ok(inner),

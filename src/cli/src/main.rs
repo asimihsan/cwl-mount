@@ -10,6 +10,7 @@ use chrono::Duration;
 //
 // - https://github.com/cberner/fuser/blob/c05bea58/examples/simple.rs
 
+use clap::SubCommand;
 use clap::{crate_version, App, Arg};
 use cwl_lib::CloudWatchLogsActorHandle;
 use cwl_lib::CloudWatchLogsImpl;
@@ -29,7 +30,7 @@ use std::sync::Arc;
 use std::time::UNIX_EPOCH;
 use tokio::runtime::Handle;
 use tracing::Level;
-use tracing::{debug, info};
+use tracing::{debug, error, info};
 use tracing_subscriber::FmtSubscriber;
 
 const TTL: std::time::Duration = std::time::Duration::from_secs(1); // 1 second
@@ -351,24 +352,28 @@ pub fn is_valid_tps(v: String) -> Result<(), String> {
 async fn main() {
     let matches = App::new("cwl-mount")
         .version(crate_version!())
-        .arg(
-            Arg::with_name("mount-point")
-                .required(true)
-                .index(1)
-                .help("Act as a client, and mount FUSE at given path"),
-        )
-        .arg(
-            Arg::with_name("log-group-name")
-                .long("log-group-name")
-                .required(true)
-                .takes_value(true)
-                .help("CloudWatch Logs log group name"),
-        )
-        .arg(
-            Arg::with_name("allow-root")
-                .long("allow-root")
-                .help("Allow root user to access filesystem"),
-        )
+        .subcommands(vec![
+            SubCommand::with_name("list-log-groups").about("List AWS CloudWatch Logs log groups then quit."),
+            SubCommand::with_name("mount")
+                .about("Mount AWS CloudWatch Logs to a directory.")
+                .arg(
+                    Arg::with_name("mount-point")
+                        .index(1)
+                        .help("Mount the AWS CloudWatch logs at the given directory"),
+                )
+                .arg(
+                    Arg::with_name("log-group-name")
+                        .long("log-group-name")
+                        .required(true)
+                        .takes_value(true)
+                        .help("CloudWatch Logs log group name"),
+                )
+                .arg(
+                    Arg::with_name("allow-root")
+                        .long("allow-root")
+                        .help("Allow root user to access filesystem"),
+                ),
+        ])
         .arg(
             Arg::with_name("verbose")
                 .long("verbose")
@@ -379,6 +384,7 @@ async fn main() {
         .arg(
             Arg::with_name("region")
                 .long("region")
+                .required(true)
                 .takes_value(true)
                 .help("AWS region, e.g. 'us-west-2'"),
         )
@@ -391,14 +397,9 @@ async fn main() {
                 .help("Transactions per second (TPS) at which to call AWS CloudWatch Logs."),
         )
         .get_matches();
-    let mountpoint = matches.value_of("mount-point").unwrap();
-    let mut options = vec![MountOption::RO, MountOption::FSName("hello".to_string())];
-    if matches.is_present("allow-root") {
-        options.push(MountOption::AllowRoot);
-    }
-    let tps = matches.value_of("tps").unwrap().parse::<usize>().unwrap();
-    let log_group_name = matches.value_of("log-group-name").unwrap();
 
+    let region = matches.value_of("region");
+    let tps = matches.value_of("tps").unwrap().parse::<usize>().unwrap();
     let tracing_level = match matches.occurrences_of("verbose") {
         0 => Level::WARN,
         1 => Level::INFO,
@@ -407,21 +408,42 @@ async fn main() {
     };
     let subscriber = FmtSubscriber::builder().with_max_level(tracing_level).finish();
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
-    let region = matches.value_of("region");
 
     let cwl = CloudWatchLogsImpl::new(tps, region).await;
-    let file_tree = Arc::new(prepare_file_tree(log_group_name, &cwl).await);
-    let hello_fs = HelloFS::new(Handle::current(), cwl, log_group_name, file_tree);
 
-    // See: https://github.com/cberner/fuser/issues/179
-    let (send, recv) = std::sync::mpsc::channel();
-    ctrlc::set_handler(move || {
-        info!("CTRL-C pressed");
-        send.send(()).unwrap();
-    })
-    .unwrap();
-    info!("starting...");
-    let _guard = fuser::spawn_mount(hello_fs, mountpoint, &vec![]).unwrap();
-    let () = recv.recv().unwrap();
+    match matches.subcommand_name() {
+        Some("list-log-groups") => {
+            info!("listing log groups");
+            match cwl.get_log_group_names().await {
+                Ok(log_group_names) => print!("{}", log_group_names.join("\n")),
+                Err(err) => {
+                    error!("Failed to list log groups: {:?}", err);
+                }
+            }
+        }
+        _ => {
+            let log_group_name = matches.value_of("log-group-name").unwrap();
+            let mountpoint = matches.value_of("mount-point").unwrap();
+            let mut options = vec![MountOption::RO, MountOption::FSName("hello".to_string())];
+            if matches.is_present("allow-root") {
+                options.push(MountOption::AllowRoot);
+            }
+
+            let file_tree = Arc::new(prepare_file_tree(log_group_name, &cwl).await);
+            let hello_fs = HelloFS::new(Handle::current(), cwl, log_group_name, file_tree);
+
+            // See: https://github.com/cberner/fuser/issues/179
+            let (send, recv) = std::sync::mpsc::channel();
+            ctrlc::set_handler(move || {
+                info!("CTRL-C pressed");
+                send.send(()).unwrap();
+            })
+            .unwrap();
+            info!("starting...");
+            let _guard = fuser::spawn_mount(hello_fs, mountpoint, &vec![]).unwrap();
+            let () = recv.recv().unwrap();
+        }
+    }
+
     info!("finishing.");
 }
