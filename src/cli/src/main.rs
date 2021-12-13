@@ -333,6 +333,20 @@ impl Filesystem for HelloFS {
     }
 }
 
+/// Valid transactions per second (TPS) value fits in usize and is not zero.
+pub fn is_valid_tps(v: String) -> Result<(), String> {
+    match v.parse::<usize>() {
+        Ok(value) => match value {
+            0 => Err("Zero is not a valid transactions per second value".to_string()),
+            _ => Ok(()),
+        },
+        Err(_) => Err(format!(
+            "{} isn't a valid transactions per second value because not a positive integer",
+            &*v
+        )),
+    }
+}
+
 #[tokio::main]
 async fn main() {
     let matches = App::new("cwl-mount")
@@ -368,13 +382,21 @@ async fn main() {
                 .takes_value(true)
                 .help("AWS region, e.g. 'us-west-2'"),
         )
+        .arg(
+            Arg::with_name("tps")
+                .long("tps")
+                .takes_value(true)
+                .validator(is_valid_tps)
+                .default_value("5")
+                .help("Transactions per second (TPS) at which to call AWS CloudWatch Logs."),
+        )
         .get_matches();
     let mountpoint = matches.value_of("mount-point").unwrap();
     let mut options = vec![MountOption::RO, MountOption::FSName("hello".to_string())];
     if matches.is_present("allow-root") {
         options.push(MountOption::AllowRoot);
     }
-    let tps = 5;
+    let tps = matches.value_of("tps").unwrap().parse::<usize>().unwrap();
     let log_group_name = matches.value_of("log-group-name").unwrap();
 
     let tracing_level = match matches.occurrences_of("verbose") {

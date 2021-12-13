@@ -491,7 +491,7 @@ mod tests {
         let end_time = Some(Utc.ymd(2021, 11, 26).and_hms(21, 0, 0));
         let res =
             tokio_test::block_on(cwl.get_log_events(log_group_name, start_time, end_time, None)).unwrap();
-        // res.iter().for_each(|l| println!("{:?}", l.message));
+        res.iter().for_each(|l| println!("{:?}", l.message));
     }
 
     #[test]
