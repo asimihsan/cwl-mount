@@ -18,7 +18,7 @@ use leaky_bucket::RateLimiter;
 use lru::LruCache;
 use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
-use tracing::{debug, instrument};
+use tracing::{debug, trace, instrument};
 use aws_types::region::Region;
 
 #[derive(Error, Debug)]
@@ -278,7 +278,7 @@ impl CloudWatchLogsImpl {
         let logs = self
             .get_log_events(log_group_name, Some(start_time), Some(end_time), None)
             .await;
-        debug!("logs: {:?}", logs);
+        trace!("logs: {:?}", logs);
         let logs = logs.unwrap();
         let data: Bytes = logs
             .into_iter()
