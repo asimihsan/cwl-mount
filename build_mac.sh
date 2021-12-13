@@ -36,9 +36,9 @@ done
 #   src/target/aarch64-apple-darwin/production/cwl-mount
 # TODO support ARM
 lipo -create \
-  -output "$BASEDIR"/src/target/cwl-universal-apple-darwin-release \
+  -output "$BASEDIR"/src/target/cwl-universal-apple-darwin-production \
   "$BASEDIR"/src/target/x86_64-apple-darwin/production/cwl-mount
 
-rsync -av "$BASEDIR"/src/target/cwl-universal-apple-darwin-release "$BASEDIR"/pkg/cwl-mount
+rsync -av "$BASEDIR"/src/target/cwl-universal-apple-darwin-production "$BASEDIR"/pkg/cwl-mount
 (cd "$BASEDIR"/pkg && tar -czvf cwl-mount-0.1.1-darwin-x64_64.tar.gz cwl-mount)
 rm -f "$BASEDIR"/pkg/cwl-mount
