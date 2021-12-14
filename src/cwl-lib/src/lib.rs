@@ -15,9 +15,9 @@ use chrono::DateTime;
 use chrono::Duration;
 use chrono::TimeZone;
 use chrono::Utc;
+use futures::future::try_join_all;
 use leaky_bucket::RateLimiter;
 use lru::LruCache;
-
 use regexes::LogGroupNameMatcher;
 use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
@@ -308,11 +308,12 @@ async fn get_logs_to_display(
         });
         tasks.push(handle);
     }
-    let mut logs: Vec<FilteredLogEvent> = vec![];
-    for task in tasks.into_iter() {
-        let result = task.await.unwrap();
-        logs.extend(result);
-    }
+    let mut logs: Vec<FilteredLogEvent> = try_join_all(tasks)
+        .await
+        .unwrap()
+        .into_iter()
+        .flat_map(|e| e)
+        .collect();
     logs.sort_by_key(|l| l.timestamp);
 
     trace!("logs: {:?}", logs);
