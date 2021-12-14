@@ -9,6 +9,7 @@ extern crate derivative;
 use std::sync::Arc;
 
 use aws_sdk_cloudwatchlogs::Client;
+use aws_types::region::Region;
 use bytes::Bytes;
 use chrono::DateTime;
 use chrono::Duration;
@@ -18,8 +19,7 @@ use leaky_bucket::RateLimiter;
 use lru::LruCache;
 use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
-use tracing::{debug, trace, instrument};
-use aws_types::region::Region;
+use tracing::{debug, instrument, trace};
 
 #[derive(Error, Debug)]
 pub enum CloudWatchLogsError {
@@ -35,6 +35,9 @@ pub enum CloudWatchLogsError {
 
     #[error("failed to convert CloudWatch filtered log event: {0}")]
     FailedToConvertCloudWatchFilteredLogEvent(String),
+
+    #[error("Invalid GetLogsToDisplay message: {0}")]
+    InvalidGetLogsToDisplayMessage(String),
 
     #[error("unknown cloudwatch logs error")]
     Unknown,
@@ -111,12 +114,12 @@ struct CacheValue {
 }
 
 #[derive(Derivative)]
-#[derivative(Debug)]
+#[derivative(Clone, Debug)]
 pub struct CloudWatchLogsImpl {
     client: aws_sdk_cloudwatchlogs::Client,
 
     #[derivative(Debug = "ignore")]
-    rate_limiter: RateLimiter,
+    rate_limiter: Arc<tokio::sync::Mutex<RateLimiter>>,
     cache: Arc<tokio::sync::Mutex<LruCache<CacheKey, CacheValue>>>,
 }
 
@@ -132,12 +135,14 @@ impl CloudWatchLogsImpl {
         let client = Client::new(&config);
         Self {
             client,
-            rate_limiter: RateLimiter::builder()
-                .max(tps)
-                .initial(tps)
-                .refill(tps)
-                .interval(std::time::Duration::from_secs(1))
-                .build(),
+            rate_limiter: Arc::new(tokio::sync::Mutex::new(
+                RateLimiter::builder()
+                    .max(tps)
+                    .initial(tps)
+                    .refill(tps)
+                    .interval(std::time::Duration::from_secs(1))
+                    .build(),
+            )),
             cache: Arc::new(tokio::sync::Mutex::new(LruCache::new(cache_capacity))),
         }
     }
@@ -152,7 +157,7 @@ impl CloudWatchLogsImpl {
         let mut result = Vec::new();
         let mut next_token: Option<String> = None;
         loop {
-            self.rate_limiter.acquire_one().await;
+            self.rate_limiter.lock().await.acquire_one().await;
             let req = self
                 .client
                 .describe_log_groups()
@@ -196,7 +201,7 @@ impl CloudWatchLogsImpl {
         let limit = limit.unwrap_or(usize::MAX as i32) as usize;
         loop {
             debug!("tick, start_time: {:?}, end_time: {:?}", start_time, end_time);
-            self.rate_limiter.acquire_one().await;
+            self.rate_limiter.lock().await.acquire_one().await;
             let mut req = self
                 .client
                 .filter_log_events()
@@ -318,7 +323,8 @@ enum CloudWatchLogsMessage {
         respond_to: oneshot::Sender<Result<Option<DateTime<Utc>>, CloudWatchLogsError>>,
     },
     GetLogsToDisplay {
-        log_group_name: String,
+        log_group_name: Option<String>,
+        log_group_filter: Option<String>,
         start_time: DateTime<Utc>,
         end_time: DateTime<Utc>,
         respond_to: oneshot::Sender<Result<Bytes, CloudWatchLogsError>>,
@@ -364,15 +370,25 @@ impl CloudWatchLogsActor {
             }
             CloudWatchLogsMessage::GetLogsToDisplay {
                 log_group_name,
+                log_group_filter,
                 start_time,
                 end_time,
                 respond_to,
             } => {
-                let result = self
-                    .cwl
-                    .get_logs_to_display(log_group_name, start_time, end_time)
-                    .await;
-                let _ = respond_to.send(result);
+                if let Some(log_group_name) = log_group_name {
+                    let result = self
+                        .cwl
+                        .get_logs_to_display(log_group_name, start_time, end_time)
+                        .await;
+                    let _ = respond_to.send(result);
+                } else if let Some(_log_group_filter) = log_group_filter {
+                    let _log_group_names = self.cwl.get_log_group_names().await;
+                    todo!()
+                } else {
+                    let _ = respond_to.send(Err(CloudWatchLogsError::InvalidGetLogsToDisplayMessage(
+                        "Must specify either log_group_name or log_group_filter".to_string(),
+                    )));
+                }
             }
         }
     }
@@ -450,7 +466,8 @@ impl CloudWatchLogsActorHandle {
     #[instrument(level = "debug")]
     pub async fn get_logs_to_display(
         &self,
-        log_group_name: String,
+        log_group_name: Option<String>,
+        log_group_filter: Option<String>,
         start_time: DateTime<Utc>,
         end_time: DateTime<Utc>,
     ) -> Result<Bytes, CloudWatchLogsError> {
@@ -458,6 +475,7 @@ impl CloudWatchLogsActorHandle {
         let msg = CloudWatchLogsMessage::GetLogsToDisplay {
             respond_to: send,
             log_group_name,
+            log_group_filter,
             start_time,
             end_time,
         };
