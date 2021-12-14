@@ -348,6 +348,10 @@ pub fn is_valid_tps(v: String) -> Result<(), String> {
     }
 }
 
+/// Vaild AWS CloudWatch Logs log group name has [1, 512] chars and contains certain chars [1]
+///
+/// [1] https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_CreateLogGroup.html
+
 #[tokio::main]
 async fn main() {
     let matches = App::new("cwl-mount")
@@ -366,6 +370,7 @@ async fn main() {
                         .long("log-group-name")
                         .required(true)
                         .takes_value(true)
+                        .validator(regexes::clap_validate_cwl_log_group_name)
                         .help("CloudWatch Logs log group name"),
                 )
                 .arg(
@@ -408,12 +413,11 @@ async fn main() {
     };
     let subscriber = FmtSubscriber::builder().with_max_level(tracing_level).finish();
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
-
     let cwl = CloudWatchLogsImpl::new(tps, region).await;
 
-    match matches.subcommand_name() {
-        Some("list-log-groups") => {
-            info!("listing log groups");
+    match matches.subcommand() {
+        ("list-log-groups", _matches) => {
+            info!("listing log groups...");
             match cwl.get_log_group_names().await {
                 Ok(log_group_names) => print!("{}", log_group_names.join("\n")),
                 Err(err) => {
@@ -421,7 +425,9 @@ async fn main() {
                 }
             }
         }
-        _ => {
+        (_, matches) => {
+            info!("mounting...");
+            let matches = matches.unwrap();
             let log_group_name = matches.value_of("log-group-name").unwrap();
             let mountpoint = matches.value_of("mount-point").unwrap();
             let mut options = vec![MountOption::RO, MountOption::FSName("hello".to_string())];
