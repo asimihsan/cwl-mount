@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate derivative;
+
 macro_rules! regex {
     ($re:literal $(,)?) => {{
         static RE: once_cell::sync::OnceCell<regex::Regex> = once_cell::sync::OnceCell::new();
@@ -41,6 +44,42 @@ pub fn clap_validate_cwl_log_group_name<T: Into<String>>(log_group_name: T) -> R
             "{} is not a valid CloudWatch Logs log group name",
             log_group_name
         )),
+    }
+}
+
+pub fn validate_regex(regex: String) -> Result<(), String> {
+    match regex::Regex::new(&regex) {
+        Ok(_) => Ok(()),
+        Err(err) => Err(format!(
+            "{} is not a valid regular expression for a log group filter: {}",
+            regex, err
+        )),
+    }
+}
+
+#[derive(Derivative)]
+#[derivative(Clone, Debug, Eq, PartialEq, Hash)]
+pub struct LogGroupNameMatcher {
+    original_regex: String,
+
+    #[derivative(Debug = "ignore")]
+    #[derivative(PartialEq = "ignore")]
+    #[derivative(Hash = "ignore")]
+    matcher: regex::Regex,
+}
+
+impl LogGroupNameMatcher {
+    pub fn new(re: &str) -> Self {
+        let re = String::from(re);
+        let matcher = regex::Regex::new(&re).unwrap();
+        Self {
+            original_regex: re,
+            matcher,
+        }
+    }
+
+    pub fn is_match(&self, expr: &str) -> bool {
+        self.matcher.is_match(expr)
     }
 }
 

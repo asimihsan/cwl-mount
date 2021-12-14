@@ -16,6 +16,8 @@ derivative = "2.2.0"
 futures = "0.3.18"
 leaky-bucket = "0.11.0"
 lru = "0.7.0"
+regex = "1.5.4"
+regexes = { path = "../regexes" }
 thiserror = "1.0.30"
 tokio = { version = "1.14.0", features = ["full"] }
 tracing = "0.1.29"

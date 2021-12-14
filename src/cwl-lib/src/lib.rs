@@ -17,8 +17,11 @@ use chrono::TimeZone;
 use chrono::Utc;
 use leaky_bucket::RateLimiter;
 use lru::LruCache;
+
+use regexes::LogGroupNameMatcher;
 use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
+use tokio::task::JoinHandle;
 use tracing::{debug, instrument, trace};
 
 #[derive(Error, Debug)]
@@ -38,6 +41,9 @@ pub enum CloudWatchLogsError {
 
     #[error("Invalid GetLogsToDisplay message: {0}")]
     InvalidGetLogsToDisplayMessage(String),
+
+    #[error("No CloudWatch Logs log groups match filter: {0}")]
+    NoCloudWatchLogGroupsMatchFilter(String),
 
     #[error("unknown cloudwatch logs error")]
     Unknown,
@@ -104,7 +110,7 @@ pub struct TimeBounds {
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 struct CacheKey {
-    pub log_group_name: String,
+    pub log_group_name_matcher: LogGroupNameMatcher,
     pub time_bounds: TimeBounds,
 }
 
@@ -119,14 +125,12 @@ pub struct CloudWatchLogsImpl {
     client: aws_sdk_cloudwatchlogs::Client,
 
     #[derivative(Debug = "ignore")]
-    rate_limiter: Arc<tokio::sync::Mutex<RateLimiter>>,
-    cache: Arc<tokio::sync::Mutex<LruCache<CacheKey, CacheValue>>>,
+    rate_limiter: Arc<RateLimiter>,
 }
 
 impl CloudWatchLogsImpl {
     #[instrument(level = "debug")]
     pub async fn new<T: std::fmt::Debug + Into<String>>(tps: usize, region: Option<T>) -> Self {
-        let cache_capacity = Duration::hours(1).num_minutes() as usize;
         let mut config = aws_config::from_env();
         if let Some(region) = region {
             config = config.region(Region::new(region.into()));
@@ -135,20 +139,15 @@ impl CloudWatchLogsImpl {
         let client = Client::new(&config);
         Self {
             client,
-            rate_limiter: Arc::new(tokio::sync::Mutex::new(
+            rate_limiter: Arc::new(
                 RateLimiter::builder()
                     .max(tps)
                     .initial(tps)
                     .refill(tps)
                     .interval(std::time::Duration::from_secs(1))
                     .build(),
-            )),
-            cache: Arc::new(tokio::sync::Mutex::new(LruCache::new(cache_capacity))),
+            ),
         }
-    }
-
-    fn is_cacheable(&self, cache_key: &CacheKey) -> bool {
-        Utc::now() - cache_key.time_bounds.last_event_time > Duration::minutes(5)
     }
 
     #[instrument(level = "debug")]
@@ -157,7 +156,7 @@ impl CloudWatchLogsImpl {
         let mut result = Vec::new();
         let mut next_token: Option<String> = None;
         loop {
-            self.rate_limiter.lock().await.acquire_one().await;
+            self.rate_limiter.acquire_one().await;
             let req = self
                 .client
                 .describe_log_groups()
@@ -201,7 +200,7 @@ impl CloudWatchLogsImpl {
         let limit = limit.unwrap_or(usize::MAX as i32) as usize;
         loop {
             debug!("tick, start_time: {:?}, end_time: {:?}", start_time, end_time);
-            self.rate_limiter.lock().await.acquire_one().await;
+            self.rate_limiter.acquire_one().await;
             let mut req = self
                 .client
                 .filter_log_events()
@@ -258,51 +257,81 @@ impl CloudWatchLogsImpl {
 
         Ok(Some(first_event_time))
     }
+}
 
-    #[instrument(level = "debug")]
-    async fn get_logs_to_display(
-        &self,
-        log_group_name: String,
-        start_time: DateTime<Utc>,
-        end_time: DateTime<Utc>,
-    ) -> Result<Bytes, CloudWatchLogsError> {
-        let cache_key = CacheKey {
-            log_group_name: log_group_name.clone(),
-            time_bounds: TimeBounds {
-                first_event_time: start_time,
-                last_event_time: end_time,
-            },
-        };
-        debug!("get_logs_to_display. cache_key: {:?}", cache_key);
-        let cache = Arc::clone(&self.cache);
-        {
-            let mut cache = cache.lock().await;
-            if let Some(value) = cache.get(&cache_key) {
-                return Ok(value.data_to_display.clone());
-            }
+fn is_cacheable(cache_key: &CacheKey) -> bool {
+    Utc::now() - cache_key.time_bounds.last_event_time > Duration::minutes(5)
+}
+
+#[instrument(level = "debug")]
+async fn get_logs_to_display(
+    log_group_name_matcher: LogGroupNameMatcher,
+    start_time: DateTime<Utc>,
+    end_time: DateTime<Utc>,
+    cwl: Arc<CloudWatchLogsImpl>,
+    cache: Arc<tokio::sync::Mutex<LruCache<CacheKey, CacheValue>>>,
+) -> Result<Bytes, CloudWatchLogsError> {
+    let cache_key = CacheKey {
+        log_group_name_matcher: log_group_name_matcher.clone(),
+        time_bounds: TimeBounds {
+            first_event_time: start_time,
+            last_event_time: end_time,
+        },
+    };
+    debug!("get_logs_to_display. cache_key: {:?}", cache_key);
+    let cache = Arc::clone(&cache);
+    {
+        let mut cache = cache.lock().await;
+        if let Some(value) = cache.get(&cache_key) {
+            return Ok(value.data_to_display.clone());
         }
-        let logs = self
-            .get_log_events(log_group_name, Some(start_time), Some(end_time), None)
-            .await;
-        trace!("logs: {:?}", logs);
-        let logs = logs.unwrap();
-        let data: Bytes = logs
-            .into_iter()
-            .map(|log| format!("[{}] {}", log.log_stream_name, log.message))
-            .collect::<Vec<String>>()
-            .join("\n")
-            .into();
-        if self.is_cacheable(&cache_key) {
-            let mut cache = cache.lock().await;
-            cache.put(
-                cache_key,
-                CacheValue {
-                    data_to_display: data.clone(),
-                },
-            );
-        }
-        Ok(data)
     }
+    let log_group_names: Vec<String> = cwl
+        .get_log_group_names()
+        .await?
+        .into_iter()
+        .filter(|log_group_name| log_group_name_matcher.is_match(log_group_name))
+        .collect();
+    let mut tasks = vec![];
+    for log_group_name in log_group_names.into_iter() {
+        let cwl = Arc::clone(&cwl);
+        let handle: JoinHandle<Vec<FilteredLogEvent>> = tokio::spawn(async move {
+            debug!(
+                "get_logs_to_display spawning to get logs for log_group_name {}",
+                log_group_name
+            );
+            let logs = cwl
+                .get_log_events(log_group_name, Some(start_time), Some(end_time), None)
+                .await
+                .unwrap();
+            return logs;
+        });
+        tasks.push(handle);
+    }
+    let mut logs: Vec<FilteredLogEvent> = vec![];
+    for task in tasks.into_iter() {
+        let result = task.await.unwrap();
+        logs.extend(result);
+    }
+    logs.sort_by_key(|l| l.timestamp);
+
+    trace!("logs: {:?}", logs);
+    let data: Bytes = logs
+        .into_iter()
+        .map(|log| format!("[{}] {}", log.log_stream_name, log.message))
+        .collect::<Vec<String>>()
+        .join("\n")
+        .into();
+    if is_cacheable(&cache_key) {
+        let mut cache = cache.lock().await;
+        cache.put(
+            cache_key,
+            CacheValue {
+                data_to_display: data.clone(),
+            },
+        );
+    }
+    Ok(data)
 }
 
 // See: https://ryhl.io/blog/actors-with-tokio/
@@ -333,12 +362,17 @@ enum CloudWatchLogsMessage {
 
 #[derive(Debug)]
 struct CloudWatchLogsActor {
-    cwl: CloudWatchLogsImpl,
+    cwl: Arc<CloudWatchLogsImpl>,
+    logs_display_cache: Arc<tokio::sync::Mutex<LruCache<CacheKey, CacheValue>>>,
 }
 
 impl CloudWatchLogsActor {
     fn new(cwl: CloudWatchLogsImpl) -> Self {
-        CloudWatchLogsActor { cwl }
+        let cache_capacity = Duration::hours(1).num_minutes() as usize;
+        CloudWatchLogsActor {
+            cwl: Arc::new(cwl),
+            logs_display_cache: Arc::new(tokio::sync::Mutex::new(LruCache::new(cache_capacity))),
+        }
     }
 
     #[instrument(level = "debug")]
@@ -375,20 +409,22 @@ impl CloudWatchLogsActor {
                 end_time,
                 respond_to,
             } => {
+                let pattern: String;
                 if let Some(log_group_name) = log_group_name {
-                    let result = self
-                        .cwl
-                        .get_logs_to_display(log_group_name, start_time, end_time)
-                        .await;
-                    let _ = respond_to.send(result);
-                } else if let Some(_log_group_filter) = log_group_filter {
-                    let _log_group_names = self.cwl.get_log_group_names().await;
-                    todo!()
+                    pattern = format!("^{}$", log_group_name.as_str());
+                } else if let Some(log_group_filter) = log_group_filter {
+                    pattern = log_group_filter;
                 } else {
                     let _ = respond_to.send(Err(CloudWatchLogsError::InvalidGetLogsToDisplayMessage(
                         "Must specify either log_group_name or log_group_filter".to_string(),
                     )));
+                    return;
                 }
+                let matcher = LogGroupNameMatcher::new(&pattern);
+                let cwl = Arc::clone(&self.cwl);
+                let cache = Arc::clone(&self.logs_display_cache);
+                let result = get_logs_to_display(matcher, start_time, end_time, cwl, cache).await;
+                let _ = respond_to.send(result);
             }
         }
     }

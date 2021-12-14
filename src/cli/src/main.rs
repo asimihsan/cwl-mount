@@ -37,19 +37,17 @@ const TTL: std::time::Duration = std::time::Duration::from_secs(1); // 1 second
 const FMODE_EXEC: i32 = 0x20;
 const EMPTY_BUFFER: [u8; 0] = [];
 
-pub async fn prepare_file_tree<T: Into<String>>(
-    log_group_name: T,
-    cwl: &CloudWatchLogsImpl,
-) -> fuse::FileTree {
+pub async fn prepare_file_tree(_cwl: &CloudWatchLogsImpl) -> fuse::FileTree {
     let end_time = Utc::now();
     let default_start_time = end_time - Duration::days(365);
+    let start_time = default_start_time;
 
     // TODO use CloudWatch actor to get this start time
-    let start_time = cwl
-        .get_first_event_time_for_log_group(log_group_name.into())
-        .await
-        .unwrap_or(Some(default_start_time))
-        .unwrap_or(default_start_time);
+    // let start_time = cwl
+    //     .get_first_event_time_for_log_group(log_group_name.into())
+    //     .await
+    //     .unwrap_or(Some(default_start_time))
+    //     .unwrap_or(default_start_time);
 
     create_file_tree_for_time_range(start_time, end_time)
 }
@@ -64,26 +62,28 @@ struct HelloFS {
     // [1] https://stackoverflow.com/questions/46267972/fuse-avoid-calculating-size-in-getattr
     direct_io: bool,
 
-    log_group_name: String,
+    log_group_name: Option<String>,
+    log_group_filter: Option<String>,
     file_tree: Arc<fuse::FileTree>,
 }
 
 impl HelloFS {
-    pub fn new<T: Into<String>>(
+    pub fn new(
         handle: Handle,
         cwl: CloudWatchLogsImpl,
-        log_group_name: T,
+        log_group_name: Option<&str>,
+        log_group_filter: Option<&str>,
         file_tree: Arc<fuse::FileTree>,
     ) -> Self {
         let direct_io = true;
-        let log_group_name = log_group_name.into();
         let cwl_actor_handle = Arc::new(CloudWatchLogsActorHandle::new(cwl));
 
         Self {
             handle: Arc::new(handle),
             cwl_actor_handle,
             direct_io,
-            log_group_name: log_group_name.into(),
+            log_group_name: log_group_name.map(|s| s.to_string()),
+            log_group_filter: log_group_filter.map(|s| s.to_string()),
             file_tree,
         }
     }
@@ -220,12 +220,18 @@ impl Filesystem for HelloFS {
             }
             fuse::FileType::File(time_bounds) => {
                 let log_group_name = self.log_group_name.clone();
+                let log_group_filter = self.log_group_filter.clone();
                 let cwl_actor_handle = Arc::clone(&self.cwl_actor_handle);
                 let (tx, rx) = crossbeam::channel::bounded(1);
                 let handle = Arc::clone(&self.handle);
                 handle.spawn(async move {
                     let res = cwl_actor_handle
-                        .get_logs_to_display(log_group_name, time_bounds.start_time, time_bounds.end_time)
+                        .get_logs_to_display(
+                            log_group_name,
+                            log_group_filter,
+                            time_bounds.start_time,
+                            time_bounds.end_time,
+                        )
                         .await;
                     let _ = tx.send(res);
                 });
@@ -368,10 +374,18 @@ async fn main() {
                 .arg(
                     Arg::with_name("log-group-name")
                         .long("log-group-name")
-                        .required(true)
+                        .required(false)
                         .takes_value(true)
                         .validator(regexes::clap_validate_cwl_log_group_name)
                         .help("CloudWatch Logs log group name"),
+                )
+                .arg(
+                    Arg::with_name("log-group-filter")
+                        .long("log-group-filter")
+                        .required(false)
+                        .takes_value(true)
+                        .validator(regexes::validate_regex)
+                        .help("CloudWatch Logs log group filter, a regular expression"),
                 )
                 .arg(
                     Arg::with_name("allow-root")
@@ -428,15 +442,22 @@ async fn main() {
         (_, matches) => {
             info!("mounting...");
             let matches = matches.unwrap();
-            let log_group_name = matches.value_of("log-group-name").unwrap();
+            let log_group_name = matches.value_of("log-group-name");
+            let log_group_filter = matches.value_of("log-group-filter");
             let mountpoint = matches.value_of("mount-point").unwrap();
             let mut options = vec![MountOption::RO, MountOption::FSName("hello".to_string())];
             if matches.is_present("allow-root") {
                 options.push(MountOption::AllowRoot);
             }
 
-            let file_tree = Arc::new(prepare_file_tree(log_group_name, &cwl).await);
-            let hello_fs = HelloFS::new(Handle::current(), cwl, log_group_name, file_tree);
+            let file_tree = Arc::new(prepare_file_tree(&cwl).await);
+            let hello_fs = HelloFS::new(
+                Handle::current(),
+                cwl,
+                log_group_name,
+                log_group_filter,
+                file_tree,
+            );
 
             // See: https://github.com/cberner/fuser/issues/179
             let (send, recv) = std::sync::mpsc::channel();

@@ -547,6 +547,8 @@ dependencies = [
  "futures",
  "leaky-bucket",
  "lru",
+ "regex",
+ "regexes",
  "thiserror",
  "tokio",
  "tokio-test",
@@ -1199,6 +1201,7 @@ checksum = "f497285884f3fcff424ffc933e56d7cbca511def0c9831a7f9b5f6153e3cc89b"
 name = "regexes"
 version = "0.1.0"
 dependencies = [
+ "derivative",
  "once_cell",
  "regex",
 ]
