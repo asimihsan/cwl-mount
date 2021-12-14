@@ -1,0 +1,5 @@
+language: rust
+before_script:
+  - cd src
+script:
+  - cargo build --verbose --workspace
