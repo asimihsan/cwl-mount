@@ -1,4 +1,26 @@
+---
+arch: amd64
+os: linux
+dist: focal
+cache: cargo
 language: rust
+rust:
+  - stable
+  - beta
+  - nightly
+matrix:
+  allow_failures:
+    - rust: nightly
+  before_cache: 
+    - rm -rf ~/.cargo/registry/index/ # Remove cache files 
+    - rm -f  ./target/.rustc_info.json # Remove more cache files that are recursively brought back upon a triggered build
+    - find ./target/debug -maxdepth 1 -type f -delete # Delete loose files 
+  fast_finish: true
+before_install:
+  sudo apt-get -y install libfuse-dev
+addons:
+  apt:
+    update: true
 before_script:
   - cd src
 script:
