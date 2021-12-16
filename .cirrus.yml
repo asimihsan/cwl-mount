@@ -26,6 +26,8 @@ common_unix_template_after: &COMMON_UNIX_TEMPLATE_AFTER
   before_cache_script: rm -rf "$HOME/.cargo/registry/index"
   upload_caches:
     - cargo
+  update_github_badge_script:
+    - curl -X PURGE https://camo.githubusercontent.com/6552974756547e871a5849c5f98a8c5b990cc8e2ca00fae84c28ec067524e839/68747470733a2f2f6170692e6369727275732d63692e636f6d2f6769746875622f6173696d696873616e2f63776c2d6d6f756e742e737667
 
 task:
   name: Build
