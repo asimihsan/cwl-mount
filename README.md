@@ -6,6 +6,13 @@
 <h4 align="center">Mount AWS CloudWatch logs as a file system.</h4>
 
 <p align="center">
+  <a href="https://cirrus-ci.com/github/asimihsan/cwl-mount">
+    <img src="https://api.cirrus-ci.com/github/asimihsan/cwl-mount.svg"
+         alt="Build Status">
+  </a>
+</p>
+
+<p align="center">
   <a href="#key-features">Key Features</a> •
   <a href="#how-to-use">How To Use</a> •
   <a href="#installation">Installation</a> •

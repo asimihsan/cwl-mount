@@ -1,0 +1,65 @@
+---
+common_unix_template_before: &COMMON_UNIX_TEMPLATE_BEFORE
+  install_rustup_script: |
+    curl -sSfL https://sh.rustup.rs \
+      | sh -s -- -y --default-toolchain none --no-modify-path --profile=minimal
+  install_rust_script:
+    - source $HOME/.cargo/env
+    - rustup default "$RUST_VERSION"
+  toolchain_cache:
+    folder: $HOME/.rustup
+    fingerprint_script:
+      - echo "${CIRRUS_OS}"
+      - source $HOME/.cargo/env
+      - rustc +$RUST_VERSION --version
+  upload_caches:
+    - toolchain
+
+common_unix_template_after: &COMMON_UNIX_TEMPLATE_AFTER
+  binaries_artifacts:
+    path: "pkg/*.{tar.gz,rpm,deb}"
+  cargo_cache:
+    folder: $HOME/.cargo/registry
+    fingerprint_script:
+      - echo "${CIRRUS_OS}"
+      - cat src/Cargo.lock
+  before_cache_script: rm -rf "$HOME/.cargo/registry/index"
+  upload_caches:
+    - cargo
+
+task:
+  name: Build
+
+  env:
+    matrix:
+      - RUST_VERSION: stable
+  allow_failures: $RUST_VERSION == 'nightly'
+
+  matrix:
+    - matrix:
+        - name: build_${RUST_VERSION}_debian
+          container:
+            image: debian:bullseye
+          install_script:
+            - apt-get --yes update
+            - DEBIAN_FRONTEND=noninteractive apt-get --yes install build-essential curl libfuse-dev pkg-config ruby ruby-dev squashfs-tools
+            - apt-get clean
+            - gem install fpm
+          <<: *COMMON_UNIX_TEMPLATE_BEFORE
+          build_script:
+            - source $HOME/.cargo/env
+            - ./build_deb.sh
+          <<: *COMMON_UNIX_TEMPLATE_AFTER
+
+        - name: build_${RUST_VERSION}_mac
+          macos_instance:
+            image: big-sur-xcode-13
+          macos_brew_addon_script:
+            - brew install coreutils
+            - brew install macfuse
+          <<: *COMMON_UNIX_TEMPLATE_BEFORE
+          build_script:
+            - source $HOME/.cargo/env
+            - xcodebuild -showsdks
+            - ./build_mac.sh
+          <<: *COMMON_UNIX_TEMPLATE_AFTER

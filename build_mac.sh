@@ -7,12 +7,14 @@ set -euxo pipefail
 
 BASEDIR=$(realpath "$(dirname "$0")")
 
-CROSSBUILD_MACOS_SDK="macosx12.0"
-
-# If this fails, try "xcodebuild -showsdks" to find one that exists
-if ! xcrun -sdk $CROSSBUILD_MACOS_SDK --show-sdk-path >/dev/null; then
-  echo >&2
-  echo >&2 "ERROR: $CROSSBUILD_MACOS_SDK not found, try \"xcodebuild -showsdks\" to find a better one, then update build_mac.sh and try again"
+if xcodebuild -showsdks | grep macosx12.0 > /dev/null; then
+  CROSSBUILD_MACOS_SDK="macosx12.0"
+elif xcodebuild -showsdks | grep macosx11.3 > /dev/null; then
+  CROSSBUILD_MACOS_SDK="macosx11.3"
+elif xcodebuild -showsdks | grep macosx10.13 > /dev/null; then
+  CROSSBUILD_MACOS_SDK="macosx10.13"
+else
+  echo "Can't figure out CROSSBUILD_MACOS_SDK. Run 'xcodebuild -showsdks' to find a better one."
   exit 1
 fi
 
