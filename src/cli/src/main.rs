@@ -10,6 +10,7 @@ use chrono::Duration;
 //
 // - https://github.com/cberner/fuser/blob/c05bea58/examples/simple.rs
 
+use clap::ArgGroup;
 use clap::SubCommand;
 use clap::{crate_version, App, Arg};
 use cwl_lib::CloudWatchLogsActorHandle;
@@ -354,10 +355,6 @@ pub fn is_valid_tps(v: String) -> Result<(), String> {
     }
 }
 
-/// Vaild AWS CloudWatch Logs log group name has [1, 512] chars and contains certain chars [1]
-///
-/// [1] https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_CreateLogGroup.html
-
 #[tokio::main]
 async fn main() {
     let matches = App::new("cwl-mount")
@@ -369,12 +366,13 @@ async fn main() {
                 .arg(
                     Arg::with_name("mount-point")
                         .index(1)
+                        .required(true)
+                        .takes_value(true)
                         .help("Mount the AWS CloudWatch logs at the given directory"),
                 )
                 .arg(
                     Arg::with_name("log-group-name")
                         .long("log-group-name")
-                        .required(false)
                         .takes_value(true)
                         .validator(regexes::clap_validate_cwl_log_group_name)
                         .help("CloudWatch Logs log group name"),
@@ -382,7 +380,6 @@ async fn main() {
                 .arg(
                     Arg::with_name("log-group-filter")
                         .long("log-group-filter")
-                        .required(false)
                         .takes_value(true)
                         .validator(regexes::validate_regex)
                         .help("CloudWatch Logs log group filter, a regular expression"),
@@ -391,6 +388,12 @@ async fn main() {
                     Arg::with_name("allow-root")
                         .long("allow-root")
                         .help("Allow root user to access filesystem"),
+                )
+                .group(
+                    ArgGroup::with_name("log-group-specifiers")
+                        .args(&["log-group-name", "log-group-filter"])
+                        .required(true)
+                        .multiple(false),
                 ),
         ])
         .arg(

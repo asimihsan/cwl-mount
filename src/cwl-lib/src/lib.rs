@@ -51,6 +51,7 @@ pub enum CloudWatchLogsError {
 
 #[derive(Clone, Debug)]
 pub struct FilteredLogEvent {
+    pub log_group_name: String,
     pub event_id: String,
     pub ingestion_time: DateTime<Utc>,
     pub log_stream_name: String,
@@ -58,10 +59,11 @@ pub struct FilteredLogEvent {
     pub timestamp: DateTime<Utc>,
 }
 
-impl TryFrom<aws_sdk_cloudwatchlogs::model::FilteredLogEvent> for FilteredLogEvent {
-    type Error = CloudWatchLogsError;
-
-    fn try_from(value: aws_sdk_cloudwatchlogs::model::FilteredLogEvent) -> Result<Self, Self::Error> {
+impl FilteredLogEvent {
+    pub fn new(
+        log_group_name: impl Into<std::string::String>,
+        value: aws_sdk_cloudwatchlogs::model::FilteredLogEvent,
+    ) -> Result<Self, CloudWatchLogsError> {
         let event_id = match value.event_id {
             Some(event_id) => Ok(event_id),
             None => Err(CloudWatchLogsError::FailedToConvertCloudWatchFilteredLogEvent(
@@ -93,6 +95,7 @@ impl TryFrom<aws_sdk_cloudwatchlogs::model::FilteredLogEvent> for FilteredLogEve
             )),
         }?;
         Ok(Self {
+            log_group_name: log_group_name.into(),
             event_id,
             ingestion_time,
             log_stream_name,
@@ -204,7 +207,7 @@ impl CloudWatchLogsImpl {
             let mut req = self
                 .client
                 .filter_log_events()
-                .log_group_name(log_group_name.clone())
+                .log_group_name(&log_group_name)
                 .limit(LOGS_BATCH_SIZE as i32)
                 .set_next_token(next_token);
             if let Some(start_time) = start_time {
@@ -218,7 +221,7 @@ impl CloudWatchLogsImpl {
                 Err(err) => Err(CloudWatchLogsError::FilterLogEventsError(err)),
             }?;
             for event in resp.events.unwrap_or(vec![]) {
-                let event: FilteredLogEvent = event.try_into().unwrap();
+                let event = FilteredLogEvent::new(&log_group_name, event)?;
                 if events.len() >= limit {
                     return Ok(events);
                 }
