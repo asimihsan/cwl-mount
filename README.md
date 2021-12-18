@@ -323,6 +323,9 @@ terminalizer record demo
 tmux
 # ...
 
+cwl-mount --region us-west-2 list-log-groups
+cwl-mount --region us-west-2 mount --log-group-filter '^babynames-preprod' --output-format '[$log_group_name] [$log_stream_name] [$timestamp] $message' /tmp/foo
+
 # when you're done
 CTRL-D
 
