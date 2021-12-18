@@ -597,6 +597,7 @@ dependencies = [
  "ctrlc",
  "cwl-lib",
  "env_logger",
+ "format-cwl-log-event",
  "fuse",
  "fuser",
  "libc",
@@ -685,6 +686,7 @@ dependencies = [
  "pest_derive",
  "pest_generator",
  "quote",
+ "thiserror",
 ]
 
 [[package]]

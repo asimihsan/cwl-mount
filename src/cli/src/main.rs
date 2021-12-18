@@ -66,7 +66,7 @@ struct HelloFS {
     log_group_name: Option<String>,
     log_group_filter: Option<String>,
     file_tree: Arc<fuse::FileTree>,
-    output_format: String,
+    formatter: format_cwl_log_event::LogFormatter,
 }
 
 impl HelloFS {
@@ -76,7 +76,7 @@ impl HelloFS {
         log_group_name: Option<&str>,
         log_group_filter: Option<&str>,
         file_tree: Arc<fuse::FileTree>,
-        output_format: impl Into<std::string::String>,
+        formatter: format_cwl_log_event::LogFormatter,
     ) -> Self {
         let direct_io = true;
         let cwl_actor_handle = Arc::new(CloudWatchLogsActorHandle::new(cwl));
@@ -88,7 +88,7 @@ impl HelloFS {
             log_group_name: log_group_name.map(|s| s.to_string()),
             log_group_filter: log_group_filter.map(|s| s.to_string()),
             file_tree,
-            output_format: output_format.into(),
+            formatter,
         }
     }
 }
@@ -228,7 +228,7 @@ impl Filesystem for HelloFS {
                 let cwl_actor_handle = Arc::clone(&self.cwl_actor_handle);
                 let (tx, rx) = crossbeam::channel::bounded(1);
                 let handle = Arc::clone(&self.handle);
-                let output_format = self.output_format.clone();
+                let formatter = self.formatter.clone();
                 handle.spawn(async move {
                     let res = cwl_actor_handle
                         .get_logs_to_display(
@@ -236,7 +236,7 @@ impl Filesystem for HelloFS {
                             log_group_filter,
                             time_bounds.start_time,
                             time_bounds.end_time,
-                            output_format,
+                            formatter,
                         )
                         .await;
                     let _ = tx.send(res);
@@ -398,9 +398,9 @@ async fn main() {
                     Arg::with_name("output-format")
                         .long("output-format")
                         .takes_value(true)
-                        .default_value("[{log_stream_name}] {message}")
-                        .validator(regexes::clap_validate_cwl_log_group_name)
-                        .help("Output format string. Valid parameters to use are [log_group_name, event_id, ingestion_time, log_stream_name, message, timestamp]"),
+                        .default_value("[${log_stream_name}] ${message}")
+                        .validator(format_cwl_log_event::clap_validate_output_format)
+                        .help("Output format string. Valid parameters to use are [log_group_name, event_id, ingestion_time, log_stream_name, message, timestamp]."),
                 )
                 .group(
                     ArgGroup::with_name("log-group-specifiers")
@@ -460,7 +460,8 @@ async fn main() {
             let matches = matches.unwrap();
             let log_group_name = matches.value_of("log-group-name");
             let log_group_filter = matches.value_of("log-group-filter");
-            let output_format = matches.value_of("output_format").unwrap();
+            let output_format = matches.value_of("output-format").unwrap();
+            let formatter = format_cwl_log_event::LogFormatter::new(output_format).unwrap();
             let mountpoint = matches.value_of("mount-point").unwrap();
             let mut options = vec![MountOption::RO, MountOption::FSName("hello".to_string())];
             if matches.is_present("allow-root") {
@@ -474,7 +475,7 @@ async fn main() {
                 log_group_name,
                 log_group_filter,
                 file_tree,
-                output_format,
+                formatter,
             );
 
             // See: https://github.com/cberner/fuser/issues/179

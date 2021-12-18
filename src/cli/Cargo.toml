@@ -15,6 +15,7 @@ crossbeam = "0.8.1"
 ctrlc = "3.2.1"
 cwl-lib = { path = "../cwl-lib" }
 env_logger = "0.9.0"
+format-cwl-log-event = { path = "../format-cwl-log-event" }
 fuse = { path = "../fuse" }
 fuser = { version = "0.9.1", features = ["abi-7-30"] }
 libc = "0.2.111"

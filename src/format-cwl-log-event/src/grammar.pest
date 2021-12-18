@@ -27,8 +27,8 @@ delimiter = _{"$"}
 
 identifier = @{("_" | ASCII_ALPHA_LOWER) ~ (ASCII_ALPHANUMERIC | "_")*}
 
-variable = @{
-    "{" ~ delimiter ~ identifier ~ "}" |
+variable = ${
+    delimiter ~ "{" ~ identifier ~ "}" |
     delimiter ~ identifier
 }
 

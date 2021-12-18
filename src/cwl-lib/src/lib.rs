@@ -84,14 +84,14 @@ fn convert_to_filtered_log_event(
             "timestamp missing".to_string(),
         )),
     }?;
-    Ok(format_cwl_log_event::FilteredLogEvent {
-        log_group_name: log_group_name.into(),
-        event_id,
+    Ok(format_cwl_log_event::FilteredLogEvent::new(
+        &log_group_name.into().clone(),
+        &event_id,
         ingestion_time,
-        log_stream_name,
-        message,
+        &log_stream_name,
+        &message,
         timestamp,
-    })
+    ))
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -104,7 +104,7 @@ pub struct TimeBounds {
 struct CacheKey {
     pub log_group_name_matcher: LogGroupNameMatcher,
     pub time_bounds: TimeBounds,
-    pub output_format: String,
+    pub formatter: format_cwl_log_event::LogFormatter,
 }
 
 #[derive(Clone, Debug)]
@@ -261,7 +261,7 @@ async fn get_logs_to_display(
     log_group_name_matcher: LogGroupNameMatcher,
     start_time: DateTime<Utc>,
     end_time: DateTime<Utc>,
-    output_format: String,
+    formatter: format_cwl_log_event::LogFormatter,
     cwl: Arc<CloudWatchLogsImpl>,
     cache: Arc<tokio::sync::Mutex<LruCache<CacheKey, CacheValue>>>,
 ) -> Result<Bytes, CloudWatchLogsError> {
@@ -271,7 +271,7 @@ async fn get_logs_to_display(
             first_event_time: start_time,
             last_event_time: end_time,
         },
-        output_format: output_format.clone(),
+        formatter: formatter.clone(),
     };
     debug!("get_logs_to_display. cache_key: {:?}", cache_key);
     let cache = Arc::clone(&cache);
@@ -314,7 +314,7 @@ async fn get_logs_to_display(
     trace!("logs: {:?}", logs);
     let data: Bytes = logs
         .into_iter()
-        .map(|log| format!("[{}] {}", log.log_stream_name, log.message))
+        .map(|log| formatter.format(log))
         .collect::<Vec<String>>()
         .join("\n")
         .into();
@@ -352,7 +352,7 @@ enum CloudWatchLogsMessage {
         log_group_filter: Option<String>,
         start_time: DateTime<Utc>,
         end_time: DateTime<Utc>,
-        output_format: String,
+        formatter: format_cwl_log_event::LogFormatter,
         respond_to: oneshot::Sender<Result<Bytes, CloudWatchLogsError>>,
     },
 }
@@ -405,7 +405,7 @@ impl CloudWatchLogsActor {
                 start_time,
                 end_time,
                 respond_to,
-                output_format,
+                formatter,
             } => {
                 let pattern: String;
                 if let Some(log_group_name) = log_group_name {
@@ -422,7 +422,7 @@ impl CloudWatchLogsActor {
                 let cwl = Arc::clone(&self.cwl);
                 let cache = Arc::clone(&self.logs_display_cache);
                 let result =
-                    get_logs_to_display(matcher, start_time, end_time, output_format, cwl, cache).await;
+                    get_logs_to_display(matcher, start_time, end_time, formatter, cwl, cache).await;
                 let _ = respond_to.send(result);
             }
         }
@@ -505,7 +505,7 @@ impl CloudWatchLogsActorHandle {
         log_group_filter: Option<String>,
         start_time: DateTime<Utc>,
         end_time: DateTime<Utc>,
-        output_format: String,
+        formatter: format_cwl_log_event::LogFormatter,
     ) -> Result<Bytes, CloudWatchLogsError> {
         let (send, recv) = oneshot::channel();
         let msg = CloudWatchLogsMessage::GetLogsToDisplay {
@@ -514,7 +514,7 @@ impl CloudWatchLogsActorHandle {
             log_group_filter,
             start_time,
             end_time,
-            output_format,
+            formatter,
         };
         let _ = self.sender.send(msg).await;
         recv.await.expect("Actor task has been killed")
