@@ -12,4 +12,8 @@ cp "${BASEDIR}"/cwl-mount-post-install.sh "${BASEDIR}"/src/target/production/cwl
     --depends "libfuse-dev >= 2.6.0" \
     --depends "libcap2-bin" \
     --package \
-    pkg/cwl-mount-0.1.1-1-x86_64.deb)
+    pkg/cwl-mount-0.1.2-1-x86_64.deb)
+
+rsync -av "$BASEDIR"/src/target/production/cwl-mount "$BASEDIR"/pkg/cwl-mount
+(cd "$BASEDIR"/pkg && tar -czvf cwl-mount-0.1.2-linux-x64_64.tar.gz cwl-mount)
+rm -f "$BASEDIR"/pkg/cwl-mount

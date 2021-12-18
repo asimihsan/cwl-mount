@@ -15,8 +15,8 @@ RUN apt -y update && \
     apt autoremove -y && \
     apt clean && \
     rm -rf /var/lib/apt/lists/*
-COPY pkg/cwl-mount-0.1.1-1-x86_64.deb .
-RUN dpkg -i cwl-mount-0.1.1-1-x86_64.deb && \
-    rm -f cwl-mount-0.1.1-1-x86_64.deb
+COPY pkg/cwl-mount-0.1.2-1-x86_64.deb .
+RUN dpkg -i cwl-mount-0.1.2-1-x86_64.deb && \
+    rm -f cwl-mount-0.1.2-1-x86_64.deb
 COPY start.sh .
 ENTRYPOINT ["/bin/bash", "start.sh"]

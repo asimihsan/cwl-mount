@@ -13,4 +13,4 @@ cp "${BASEDIR}"/cwl-mount-post-install.sh "${BASEDIR}"/src/target/production/cwl
     --depends "fuse-libs >= 2.6.0" \
     --depends "libcap" \
     --package \
-    pkg/cwl-mount-0.1.1-1-x86_64.rpm)
+    pkg/cwl-mount-0.1.2-1-x86_64.rpm)

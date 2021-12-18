@@ -1,10 +1,10 @@
 --input-type dir
 --name cwl-mount
 --license "Apache License 2.0"
---version 0.1.1
+--version 0.1.2
 --architecture native
 --description "Mount AWS CloudWatch logs as a file system"
---url "https://example.com/hello-world"
+--url "https://github.com/asimihsan/cwl-mount"
 --chdir src/target/production
 --after-install cwl-mount-post-install.sh
 

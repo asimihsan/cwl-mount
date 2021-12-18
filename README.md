@@ -121,26 +121,64 @@ AWS_REGION=us-west-2
 
 ### Usage help
 
-Usage help:
-
 ```
-cwl-mount 0.1.1
+cwl-mount 0.1.2
 
 USAGE:
-    cwl-mount [FLAGS] [OPTIONS] <mount-point> --log-group-name <log-group-name>
+    cwl-mount [FLAGS] [OPTIONS] --region <region> [SUBCOMMAND]
+
+FLAGS:
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+    -v, --verbose    Verbose output. Set three times for maximum verbosity.
+
+OPTIONS:
+        --region <region>    AWS region, e.g. 'us-west-2'
+        --tps <tps>          Transactions per second (TPS) at which to call AWS CloudWatch Logs. [default: 5]
+
+SUBCOMMANDS:
+    help               Prints this message or the help of the given subcommand(s)
+    list-log-groups    List AWS CloudWatch Logs log groups then quit.
+    mount              Mount AWS CloudWatch Logs to a directory.
+```
+
+You can list log groups using `cwl-mount list-log-groups`:
+
+```
+cwl-mount-list-log-groups
+List AWS CloudWatch Logs log groups then quit.
+
+USAGE:
+    cwl-mount --region <region> list-log-groups
+
+FLAGS:
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+```
+
+You can mount logs using `cwl-mount mount`:
+
+```
+cwl-mount-mount
+Mount AWS CloudWatch Logs to a directory.
+
+USAGE:
+    cwl-mount --region <region> mount [FLAGS] [OPTIONS] <mount-point> <--log-group-name <log-group-name>|--log-group-filter <log-group-filter>>
 
 FLAGS:
         --allow-root    Allow root user to access filesystem
     -h, --help          Prints help information
     -V, --version       Prints version information
-    -v, --verbose       Verbose output. Set three times for maximum verbosity.
 
 OPTIONS:
-        --log-group-name <log-group-name>    CloudWatch Logs log group name
-        --region <region>                    AWS region, e.g. 'us-west-2'
+        --log-group-filter <log-group-filter>    CloudWatch Logs log group filter, a regular expression
+        --log-group-name <log-group-name>        CloudWatch Logs log group name
+        --output-format <output-format>
+            Output format string. Valid parameters to use are [log_group_name, event_id, ingestion_time,
+            log_stream_name, message, timestamp]. [default: [${log_stream_name}] ${message}]
 
 ARGS:
-    <mount-point>    Act as a client, and mount FUSE at given path
+    <mount-point>    Mount the AWS CloudWatch logs at the given directory
 ```
 
 ### Troubleshooting
@@ -155,17 +193,17 @@ variable set, otherwise STS temporary credentials may not work.
 Linux with RPM:
 
 ```
-wget https://github.com/asimihsan/cwl-mount/releases/download/v0.1.1/cwl-mount-0.1.1-1-x86_64.rpm
-yum localinstall cwl-mount-0.1.1-1-x86_64.rpm
+wget https://github.com/asimihsan/cwl-mount/releases/download/v0.1.2/cwl-mount-0.1.2-1-x86_64.rpm
+yum localinstall cwl-mount-0.1.2-1-x86_64.rpm
 cwl-mount --help
 ```
 
 Linux with DEB:
 
 ```
-wget https://github.com/asimihsan/cwl-mount/releases/download/v0.1.1/cwl-mount-0.1.1-1-x86_64.deb
+wget https://github.com/asimihsan/cwl-mount/releases/download/v0.1.2/cwl-mount-0.1.2-1-x86_64.deb
 apt -y install gdebi
-gdebi cwl-mount-0.1.1-1-x86_64.deb
+gdebi cwl-mount-0.1.2-1-x86_64.deb
 cwl-mount --help
 ```
 
@@ -176,8 +214,8 @@ Mac:
 brew install macfuse
 
 mkdir $HOME/bin
-wget https://github.com/asimihsan/cwl-mount/releases/download/v0.1.1/cwl-mount-0.1.1-darwin-x64_64.tar.gz
-tar xvf cwl-mount-0.1.1-darwin-x64_64.tar.gz --directory $HOME/bin
+wget https://github.com/asimihsan/cwl-mount/releases/download/v0.1.2/cwl-mount-0.1.2-darwin-x64_64.tar.gz
+tar xvf cwl-mount-0.1.2-darwin-x64_64.tar.gz --directory $HOME/bin
 $HOME/bin/cwl-mount --help
 ```
 
