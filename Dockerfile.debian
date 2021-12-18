@@ -13,6 +13,7 @@ RUN apt -y update && \
         libssh-dev \
         perl \
         pkg-config \
+        rsync \
         ruby \
         ruby-dev \
         squashfs-tools \

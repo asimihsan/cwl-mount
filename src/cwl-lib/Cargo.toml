@@ -21,7 +21,7 @@ regex = "1.5.4"
 regexes = { path = "../regexes" }
 serde = { version = "1.0.132", features = ["derive"] }
 thiserror = "1.0.30"
-tokio = { version = "1.15.0", features = ["full", "tracing"] }
+tokio = { version = "1.15.0", features = ["full"] }
 tracing = "0.1.29"
 
 [dev-dependencies]

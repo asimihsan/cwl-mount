@@ -363,6 +363,7 @@ pub fn is_valid_tps(v: String) -> Result<(), String> {
 #[tokio::main]
 async fn main() {
     let matches = App::new("cwl-mount")
+        .setting(clap::AppSettings::SubcommandRequiredElseHelp)
         .version(crate_version!())
         .subcommands(vec![
             SubCommand::with_name("list-log-groups").about("List AWS CloudWatch Logs log groups then quit."),
