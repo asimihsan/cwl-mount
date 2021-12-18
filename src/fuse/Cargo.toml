@@ -10,6 +10,6 @@ bytes = "1.1.0"
 chrono = "0.4.19"
 cwl-lib = { path = "../cwl-lib" }
 derivative = "2.2.0"
-lru = "0.7.0"
+lru = "0.7.1"
 slotmap = "1.0.6"
-tokio = { version = "1.14.0", features = ["full"] }
+tokio = { version = "1.15.0", features = ["full", "tracing"] }
