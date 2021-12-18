@@ -65,7 +65,7 @@ In one Terminal tab:
 
 ```
 mkdir /tmp/foo
-cwl-mount --region us-west-2 --log-group-name babynames-preprod-log-group-syslog /tmp/foo
+cwl-mount --region us-west-2 mount --log-group-name babynames-preprod-log-group-syslog /tmp/foo
 ```
 
 In a second tab:
