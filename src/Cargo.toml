@@ -3,6 +3,7 @@
 members = [
     "cli",
     "cwl-lib",
+    "format-cwl-log-event",
     "fuse",
     "regexes",
 ]
