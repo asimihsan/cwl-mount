@@ -2,7 +2,11 @@
 
 set -euxo pipefail
 
-# cargo install cargo-pants
-cargo pants
+BASEDIR=$(realpath "$(dirname "$0")")
 
-cargo deny check
+cargo install cargo-pants
+cargo install cargo-fuzz
+
+(cd "$BASEDIR"/src && cargo pants || true)
+(cd "$BASEDIR"/src && cargo deny check || true)
+(cd "$BASEDIR"/src/format-cwl-log-event && ./fuzz.sh)
