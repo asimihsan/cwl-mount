@@ -23,7 +23,7 @@
 `cwl-mount` mounts an AWS CloudWatch Logs log group as a file system. This lets you use everyday utilities
 like `cat`, `grep`, and shell globbing and query your logs.
 
-![screenshot](https://cwl-mount-readme.s3.us-west-2.amazonaws.com/demo.gif)
+![screenshot](https://cwl-mount-readme.s3.us-west-2.amazonaws.com/demo2.gif)
 
 ## What problem does `cwl-mount` solve
 
@@ -330,6 +330,19 @@ cwl-mount --region us-west-2 mount --log-group-filter '^babynames-preprod' --out
 CTRL-D
 
 terminalizer render demo
+
+# optimize it
+brew install gifsicle
+
+gifsicle --info render1639870257301.gif
+gifsicle render1639870257301.gif \
+    --colors 64 \
+    --optimize=3 \
+    --lossy=80 \
+    --threads=4 \
+    --disposal background \
+    --no-conserve-memory \
+    --output demo2.gif
 ```
 
 ### References
