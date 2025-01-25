@@ -7,19 +7,19 @@ description = "CloudWatch Logs as a file system."
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-async-trait = "0.1.52"
-bytes = "1.1.0"
-chrono = "0.4.19"
-clap = "2.34.0"
-crossbeam = "0.8.1"
-ctrlc = "3.2.1"
+async-trait = "0.1.85"
+bytes = "1.9.0"
+chrono = "0.4.39"
+clap = "4.5.27"
+crossbeam = "0.8.4"
+ctrlc = "3.4.5"
 cwl-lib = { path = "../cwl-lib" }
-env_logger = "0.9.0"
+env_logger = "0.11.6"
 format-cwl-log-event = { path = "../format-cwl-log-event" }
 fuse = { path = "../fuse" }
-fuser = { version = "0.9.1", features = ["abi-7-30"] }
-libc = "0.2.112"
+fuser = { version = "0.15.1", features = ["abi-7-30"] }
+libc = "0.2.169"
 regexes = { path = "../regexes" }
-tokio = { version = "1.15.0", features = ["full"] }
-tracing = "0.1.29"
-tracing-subscriber = "0.3.3"
+tokio = { version = "1.43.0", features = ["full"] }
+tracing = "0.1.41"
+tracing-subscriber = "0.3.19"

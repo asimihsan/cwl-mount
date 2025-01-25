@@ -1,12 +1,6 @@
 [workspace]
-
-members = [
-    "cli",
-    "cwl-lib",
-    "format-cwl-log-event",
-    "fuse",
-    "regexes",
-]
+members = ["cli", "cwl-lib", "format-cwl-log-event", "fuse", "regexes"]
+resolver = "2"
 
 [profile.release]
 opt-level = 3
